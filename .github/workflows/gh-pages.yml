@@ -1,4 +1,6 @@
 name: gh-pages
+permissions:
+  id-token: write
 on:
   push:
     branches:
