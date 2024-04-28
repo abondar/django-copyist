@@ -1,10 +1,18 @@
 [tool.poetry]
 name = "django-copyist"
-version = "0.1.1"
+version = "0.1.2"
 description = "Tool for precise and efficient django model copying"
 authors = ["abondar"]
 license = "Apache-2.0"
 readme = "README.rst"
+homepage = "https://github.com/abondar/django-copyist"
+repository = "https://github.com/abondar/django-copyist.git"
+documentation = "https://abondar.github.io/django-copyist/"
+keywords = ["django", "copy", "clone", "model"]
+packages = [
+    { include = "django_copyist" }
+]
+include = ["CHANGELOG.rst", "LICENSE", "README.rst"]
 
 [tool.poetry.dependencies]
 python = "^3.11"
