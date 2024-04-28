@@ -3,6 +3,7 @@ permissions:
   id-token: write
   pages: write
 on:
+  workflow_dispatch:
   release:
     types:
       - created
