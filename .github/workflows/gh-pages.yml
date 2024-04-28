@@ -4,22 +4,40 @@ on:
     branches:
       - main
 jobs:
-  publish:
+  build:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v4
         with:
-          python-version: "3.10"
+          python-version: "3.11"
       - name: Install and configure Poetry
         run: |
           pip install -U pip poetry
           poetry config virtualenvs.create false
       - name: Build docs
         run: make docs
-      - name: Deploy latest docs
-        uses: peaceiris/actions-gh-pages@v3
+      - uses: actions/upload-artifact@v4
         with:
-          github_token: ${{ secrets.GITHUB_TOKEN }}
-          publish_dir: docs/build/html
-          publish_branch: main
+          name: page
+          path: docs/build/html
+          if-no-files-found: error
+
+  deploy:
+    runs-on: ubuntu-latest
+    needs: build
+    environment:
+      name: github-pages
+      url: ${{steps.deployment.outputs.page_url}}
+
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          name: page
+          path: .
+      - uses: actions/configure-pages@v5
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: .
+      - id: deployment
+        uses: actions/deploy-pages@v4
