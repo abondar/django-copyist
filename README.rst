@@ -57,6 +57,11 @@ To install with poetry:
 Basic usage
 -----------
 
+.. note::
+
+    For more comfortable reading - read it in docs
+    https://abondar.github.io/django-copyist/quickstart.html
+
 Assuming you have following models in your Django app:
 
 .. code-block:: python
@@ -329,3 +334,5 @@ Next steps
 
 This is just a basic example of how to use django-copyist.
 It can do much more granular control on how it should execute copy, and you can read more about it in the documentation.
+
+https://abondar.github.io/django-copyist/overview.html
