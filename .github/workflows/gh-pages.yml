@@ -3,9 +3,9 @@ permissions:
   id-token: write
   pages: write
 on:
-  push:
-    branches:
-      - main
+  release:
+    types:
+      - created
 jobs:
   build:
     runs-on: ubuntu-latest

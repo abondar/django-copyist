@@ -66,16 +66,16 @@ class CopyResult:
     """
     This is the base class for a copy result, which serves as the output for the Copyist.
 
-    :param is_copy_successful: A flag indicating whether the copy operation was successful,
+    :ivar is_copy_successful: A flag indicating whether the copy operation was successful,
         defaults to False.
     :type is_copy_successful: bool, optional
-    :param output_map: A dictionary that contains a mapping of model names to mappings of
+    :ivar output_map: A dictionary that contains a mapping of model names to mappings of
         primary keys in the source and destination databases, defaults to None.
     :type output_map: dict, optional
-    :param ignored_map: A dictionary that contains a mapping of model names to lists of
+    :ivar ignored_map: A dictionary that contains a mapping of model names to lists of
         primary keys of models that were ignored during the copying process, defaults to None.
     :type ignored_map: dict, optional
-    :param set_to_filter_map: A dictionary that contains data of substitutes matched by
+    :ivar set_to_filter_map: A dictionary that contains data of substitutes matched by
         the `SET_TO_FILTER` action. The structure is as follows:
 
         .. code-block:: python
@@ -90,7 +90,7 @@ class CopyResult:
 
         Defaults to None.
     :type set_to_filter_map: dict, optional
-    :param reason: The reason code, returned if `is_copy_successful` is False, defaults to None.
+    :ivar reason: The reason code, returned if `is_copy_successful` is False, defaults to None.
     :type reason: AbortReason, optional
     """
 

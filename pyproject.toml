@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "django-copyist"
-version = "0.1.2"
+version = "0.1.3"
 description = "Tool for precise and efficient django model copying"
 authors = ["abondar"]
 license = "Apache-2.0"

@@ -88,7 +88,9 @@ class CopyIntent:
 @dataclass
 class CopyistConfig:
     """
-    Root copy config, containing ModelCopyConfig list
+    This is the root copy configuration that contains a list of ModelCopyConfig.
+
+    :ivar list[ModelCopyConfig] model_configs: The list of model configurations.
     """
 
     model_configs: list[ModelCopyConfig]
@@ -105,6 +107,19 @@ class IgnoreEvaluation:
 
 
 class Copyist:
+    """
+    The main class responsible for copying Django model instances based on the provided
+    configuration.
+
+    :param CopyRequest copy_request: The copy request object containing the configuration and
+        input data for the copy operation.
+
+    :ivar CopyRequest request: The copy request object containing the configuration
+        and input data for the copy operation.
+    :ivar CopyistConfig config: The configuration for the copy operation.
+    :ivar dict input_data: The input data for the copy operation.
+    """
+
     def __init__(self, copy_request: CopyRequest):
         self.request = copy_request
         self.config = copy_request.config

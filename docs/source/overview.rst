@@ -234,7 +234,7 @@ This way you can first copy all parent models, and then use compound actions to 
 Closer look at CopyRequest and CopyResult
 -----------------------------------------
 
-You probably noticed the :py:attr:`.CopyRequest` and :py:attr:`.CopyResult` classes that are used in the examples above. Let's take a closer look at them.
+You probably noticed the :py:class:`~.CopyRequest` and :py:class:`~.CopyResult` classes that are used in the examples above. Let's take a closer look at them.
 
 .. code-block:: python
 
@@ -244,28 +244,28 @@ You probably noticed the :py:attr:`.CopyRequest` and :py:attr:`.CopyResult` clas
         confirm_write=False,
     )
 
-In this example, we create a :py:attr:`.CopyRequest` object.
+In this example, we create a :py:class:`~.CopyRequest` object.
 
-:py:attr:`.CopyistConfig` is a class that holds the configuration for the copy process. It takes a list of :py:attr:`.ModelCopyConfig` objects.
-It is root config and can have multiple :py:attr:`.ModelCopyConfig` objects if you need to copy several root level models in one request.
+:py:class:`~.CopyistConfig` is a class that holds the configuration for the copy process. It takes a list of :py:class:`~.ModelCopyConfig` objects.
+It is root config and can have multiple :py:class:`~.ModelCopyConfig` objects if you need to copy several root level models in one request.
 
 :py:attr:`.input_data` is a dictionary that holds the input data for the copy process. It is used to pass data to the copy process. It can be used to pass data that is not present in the original model.
 
 :py:attr:`.confirm_write` is a more confusing one. It is a boolean that tells the copy process if it should write the data even if unmatched or ignored values were discovered during the copy process.
 
-What are unmatched or ignored values? Let's take a look at the :py:attr:`.CopyResult` object.
+What are unmatched or ignored values? Let's take a look at the :py:class:`~.CopyResult` object.
 
-:py:attr:`.CopyResult` is an object that holds the result of the copy process.
+:py:class:`~.CopyResult` is an object that holds the result of the copy process.
 
 Primarily you should look at attribute :py:attr:`.is_copy_successful`. It is a boolean that tells you if the copy process was successful. If it is `False` you should look at the :py:attr:`.reason` attribute. It is a enum that tells you why the copy process failed.
 
 :py:attr:`.output_map` is a dictionary that holds the mapping of the original model id to the new model id. It can be stored for historical purposes or to be used for UI rendering. This field is populated only on successful copy.
 
-If you copy is unsuccessful, you can look at the :py:attr:`.django_copyist.config.CopyResult.set_to_filter_map` and
-:py:attr:`.django_copyist.config.CopyResult.ignored_map` attributes.
+If you copy is unsuccessful, you can look at the :py:attr:`~django_copyist.config.CopyResult.set_to_filter_map` and
+:py:attr:`~django_copyist.config.CopyResult.ignored_map` attributes.
 They are dictionaries that hold the mapping of the original model id
-to matched ids on :py:attr:`.django_copyist.config.CopyResult.set_to_filter_map`
-and ignored fields on :py:attr:`.SET_TO_FILTER` action or :py:attr:`.django_copyist.config.ModelCopyConfig.ignore_condition` respectively.
+to matched ids on :py:attr:`~django_copyist.config.CopyResult.set_to_filter_map`
+and ignored fields on :py:attr:`.SET_TO_FILTER` action or :py:attr:`~django_copyist.config.ModelCopyConfig.ignore_condition` respectively.
 
 Why would you use this attributes? Let's see following examples
 
@@ -471,17 +471,17 @@ Above example is great and works well, but what if destination project doesn't h
 Here we are working with the same config as in the previous example, but now we have `Counterpart` with `external_id` 2 only in the `Project1` and not in the `Project2`.
 And it's here where :py:class:`.CopyResult` comes into play. We can see that the copy process failed because the counterpart with `external_id` 2 was not found in the destination project.
 
-By observing the :py:attr:`.django_copyist.config.CopyResult.set_to_filter_map` attribute, we can see that the counterpart with `external_id` 2 was not
+By observing the :py:attr:`.CopyResult.set_to_filter_map` attribute, we can see that the counterpart with `external_id` 2 was not
 matched.
 
 If it is happening in interactive context, you can prompt user to resolve this issue or accept the fact that some data won't be copied.
 
-If we want to confirm that the copy process should continue regardless, we can set the :py:attr:`.confirm_write` attribute to `True` and pass the :py:attr:`.django_copyist.config.CopyResult.set_to_filter_map` attribute to the :py:attr:`.CopyRequest` object.
+If we want to confirm that the copy process should continue regardless, we can set the :py:attr:`.confirm_write` attribute to `True` and pass the :py:attr:`.django_copyist.config.CopyResult.set_to_filter_map` attribute to the :py:class:`~.CopyRequest` object.
 
 .. note::
 
-    The :py:attr:`django_copyist.config.CopyRequest.set_to_filter_map` is passed, so that :py:class:`.Copyist` can verify that list of unmatched
-    values remained the same between copy calls. If it changed, unsuccessful result with reason :py:attr:`.django_copyist.config.AbortReason.DATA_CHANGED_STF` will be returned.
+    The :py:attr:`.CopyRequest.set_to_filter_map` is passed, so that :py:class:`~django_copyist.copyist.Copyist` can verify that list of unmatched
+    values remained the same between copy calls. If it changed, unsuccessful result with reason :py:attr:`~.DATA_CHANGED_STF` will be returned.
 
 Set to filter using custom function
 ------------------------------------
@@ -600,7 +600,7 @@ You can read more on signature at :protocol:`~.django_copyist.config.SetToFilter
 Ignoring models during copy with SET_TO_FILTER
 ------------------------------------------------
 
-You probably noticed the :py:attr:`.django_copyist.copy_request.CopyResult.ignored_map` attribute in the previous examples.
+You probably noticed the :py:attr:`.CopyResult.ignored_map` attribute in the previous examples.
 So how exactly it is used?
 
 For example, lets assume you want to have same config as in `SET_TO_FILTER` example, but you want to ignore `Task` model if it can't match all counterparts:
@@ -1240,7 +1240,7 @@ Also :py:class:`~.PostcopyStep` supports `filter_field_to_input_key` with :py:at
 Note on ordering of operations
 ------------------------------
 
-Now that we are familiar with different steps that :py:class:`~.Copyist` can go through in process,
+Now that we are familiar with different steps that :py:class:`~django_copyist.copyist.Copyist` can go through in process,
 let's talk about the order of operations.
 
 The order of operations is as follows:

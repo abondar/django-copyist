@@ -313,6 +313,7 @@ even if there are issues with matching objects in origin location with objects i
 It is not used in this example, but you can read more about it in overview section of this documentation.
 
 5. We execute the copy request.
+
 .. code-block:: python
 
     result = Copyist(copy_request).execute_copy_request()

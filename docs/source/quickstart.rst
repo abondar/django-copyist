@@ -68,7 +68,7 @@ Assuming you have following models in your Django app:
 
 
 And you want to create full copy of company with all nested data, but also want it to be created with different name and address.
-In this case you should write following ModelCopyConfig
+In this case you should write following :py:class:`~.django_copyist.config.ModelCopyConfig`
 
 .. code-block:: python
 
@@ -162,7 +162,7 @@ And then you can execute copy action like this:
 With this, all company data should be copied.
 That seems like a lot to take in, so let's break it down to what exactly happens here:
 
-1. We define a `ModelCopyConfig` for the `Company` model.
+1. We define a :py:class:`~.django_copyist.config.ModelCopyConfig` for the `Company` model.
 
 .. code-block:: python
 
@@ -171,9 +171,9 @@ That seems like a lot to take in, so let's break it down to what exactly happens
         filter_field_to_input_key={"id": "company_id"},
     ...
 
-`ModelCopyConfig` is a class that defines how to copy a model. It takes the model class as the first argument and a dictionary that maps the filter field to the input key. This is used to find the object to copy.
+:py:class:`~.django_copyist.config.ModelCopyConfig` is a class that defines how to copy a model. It takes the model class as the first argument and a dictionary that maps the filter field to the input key. This is used to find the object to copy.
 
-2. Next we define `field_copy_actions` for the `Company` model.
+2. Next we define :py:attr:`.ModelCopyConfig.field_copy_actions` for the `Company` model.
 
 .. code-block:: python
 
@@ -213,19 +213,19 @@ That seems like a lot to take in, so let's break it down to what exactly happens
         ),
     ...
 
-`field_copy_actions` is a dictionary that maps the field name to a `FieldCopyConfig` object.
+:py:attr:`.ModelCopyConfig.field_copy_actions` is a dictionary that maps the field name to a :py:class:`~.FieldCopyConfig` object.
 
-The `FieldCopyConfig` object defines how to copy the field. In this case, we take the `name` and `address` fields from the input data.
+The :py:class:`~.FieldCopyConfig` object defines how to copy the field. In this case, we take the `name` and `address` fields from the input data.
 
-`TAKE_FROM_ORIGIN` is a shortcut for creating `FieldCopyConfig` with `CopyActions.TAKE_FROM_ORIGIN` action, which takes value for new object from original object.
+:py:attr:`~django_copyist.config.TAKE_FROM_ORIGIN` is a shortcut for creating :py:class:`~.FieldCopyConfig` with :py:attr:`~.CopyActions.TAKE_FROM_ORIGIN` action, which takes value for new object from original object.
 
 We also define how to copy the `projects` and `employees` fields.
 
-We use the `MakeCopy` action to copy the related objects.
-`MakeCopy` is a shortcut for creating `FieldCopyConfig` with `CopyActions.MAKE_COPY` action and reference to given model.
-Nested `MakeCopy` automatically propagate parent id to child object.
+We use the :py:attr:`~.MakeCopy` action to copy the related objects.
+:py:attr:`~.MakeCopy` is a shortcut for creating :py:class:`~.FieldCopyConfig` with :py:attr:`CopyActions.MAKE_COPY` action and reference to given model.
+Nested :py:attr:`~.MakeCopy` automatically propagate parent id to child object.
 
-3. We define `compound_copy_actions` for the `Company` model.
+3. We define :py:attr:`~.ModelCopyConfig.compound_copy_actions` for the `Company` model.
 
 .. code-block:: python
 
@@ -242,17 +242,17 @@ Nested `MakeCopy` automatically propagate parent id to child object.
         )
     ...
 
-`compound_copy_actions` is a list of `ModelCopyConfig` objects that define how
+:py:attr:`~.ModelCopyConfig.compound_copy_actions` is a list of :py:class:`~.ModelCopyConfig` objects that define how
 to copy related objects that are not directly related to the model, or related through multiple relations that need to be created beforehand.
 
-`compound_copy_actions` are executed after all fields are copied.
+:py:attr:`~.ModelCopyConfig.compound_copy_actions` are executed after all fields are copied.
 
 In this case, we define how to copy the `Task` model. We take the `name` and `description` fields from the original object. We also define how to copy the `counterparts`, `project`, and `assignee` fields.
 
-`UpdateToCopied` is a shortcut for creating `FieldCopyConfig` with `CopyActions.UPDATE_TO_COPIED` action and reference to given model.
+:py:func:`~.UpdateToCopied` is a shortcut for creating :py:class:`~.FieldCopyConfig` with :py:attr:`CopyActions.UPDATE_TO_COPIED` action and reference to given model.
 It will search mapping of previously copied objects and update reference to copied object.
 
-4. We create a `CopyRequest` object with the `CopyistConfig` and input data.
+4. We create a :py:class:`~.CopyRequest` object with the :py:class:`~.CopyistConfig` and input data.
 
 .. code-block:: python
 
@@ -267,24 +267,25 @@ It will search mapping of previously copied objects and update reference to copi
     )
     ...
 
-`CopyRequest` is a class that defines the copy request. It takes the `CopyistConfig` object, input data, and a boolean flag that indicates whether to confirm the write operation.
+:py:class:`~.CopyRequest` is a class that defines the copy request. It takes the `CopyistConfig` object, input data, and a boolean flag that indicates whether to confirm the write operation.
 
-`CopyistConfig` is a class that defines the configuration for the copy operation. It takes a list of `ModelCopyConfig` objects.
+:py:class:`~.CopyistConfig` is a class that defines the configuration for the copy operation. It takes a list of :py:class:`~.ModelCopyConfig` objects.
 
-`input_data` is a dictionary that contains the input data for the copy operation. It is later used in filtering or `TAKE_FROM_INPUT` actions.
+:py:attr:`.CopyResult.input_data` is a dictionary that contains the input data for the copy operation. It is later used in filtering or :py:attr:`~.TAKE_FROM_INPUT` actions.
 
-`confirm_write` is a boolean flag that indicates whether to confirm the write operation,
+:py:attr:`.CopyResult.confirm_write` is a boolean flag that indicates whether to confirm the write operation,
 even if there are issues with matching objects in origin location with objects in target destination.
 It is not used in this example, but you can read more about it in overview section of this documentation.
 
 5. We execute the copy request.
+
 .. code-block:: python
 
     result = Copyist(copy_request).execute_copy_request()
 
-`Copyist` is a class that executes the copy request. It takes the `CopyRequest` object as an argument.
+:py:class:`~django_copyist.copyist.Copyist` is a class that executes the copy request. It takes the :py:class:`~.CopyRequest` object as an argument.
 
-`execute_copy_request` method returns `CopyResult` object that contains information about the copy operation. Read more about it in overview section.
+:py:attr:`.CopyResult.execute_copy_request` method returns :py:class:`~.CopyResult` object that contains information about the copy operation. Read more about it in overview section.
 
 And like this you have copied the company with all related data and can see and edit configuration in one place.
 
