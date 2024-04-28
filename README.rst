@@ -57,7 +57,7 @@ To install with poetry:
 Basic usage
 -----------
 
-.. note::
+.. warning::
     For more comfortable reading - read it in docs
     https://abondar.github.io/django-copyist/quickstart.html
 
