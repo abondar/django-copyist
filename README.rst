@@ -57,10 +57,10 @@ To install with poetry:
 Basic usage
 -----------
 
-.. note::
-
-    For more comfortable reading - read it in docs
-    https://abondar.github.io/django-copyist/quickstart.html
+> **NOTE:** :warning:
+>
+> *   For more comfortable reading - read it in docs
+> *   https://abondar.github.io/django-copyist/quickstart.html
 
 Assuming you have following models in your Django app:
 
