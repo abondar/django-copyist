@@ -1,0 +1,24 @@
+[tool.poetry]
+name = "django-copyist"
+version = "0.1.0"
+description = "Tool for precise and efficient django model copying"
+authors = ["abondar"]
+license = "Apache-2.0"
+readme = "README.rst"
+
+[tool.poetry.dependencies]
+python = "^3.10"
+Django = ">=3.2"
+
+[tool.poetry.group.dev.dependencies]
+pre-commit = "^3.7.0"
+pytest = "^8.1.1"
+factory-boy = "^3.3.0"
+pytest-django = "^4.8.0"
+sphinx = "^7.3.7"
+sphinx-book-theme = "^1.1.2"
+enum-tools = {extras = ["sphinx"], version = "^0.12.0"}
+
+[build-system]
+requires = ["poetry-core"]
+build-backend = "poetry.core.masonry.api"

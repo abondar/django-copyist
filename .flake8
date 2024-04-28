@@ -1,0 +1,11 @@
+[flake8]
+exclude=
+    .git
+    .meta
+    .tox
+    */tests/*
+max-line-length = 100
+extend-ignore = E203
+
+inline-quotes = "
+import-order-style=pep8
