@@ -4,14 +4,19 @@
 # https://www.sphinx-doc.org/en/master/usage/configuration.html
 import os
 import sys
+import tomllib
 
 # -- Project information -----------------------------------------------------
 # https://www.sphinx-doc.org/en/master/usage/configuration.html#project-information
 
+
+with open("../../pyproject.toml", "rb") as f:
+    _META = tomllib.load(f)
+
 project = "django-copyist"
 copyright = "2024, abondar"
 author = "abondar"
-release = "0.1.0"
+release = _META["tool"]["poetry"]["version"]
 
 # -- General configuration ---------------------------------------------------
 # https://www.sphinx-doc.org/en/master/usage/configuration.html#general-configuration
@@ -27,6 +32,8 @@ exclude_patterns = []
 
 # nitpicky = True
 
+html_favicon = os.path.join("_static", "logo.ico")
+html_logo = os.path.join("_static", "logo-no-background.png")
 
 # -- Options for HTML output -------------------------------------------------
 # https://www.sphinx-doc.org/en/master/usage/configuration.html#options-for-html-output
