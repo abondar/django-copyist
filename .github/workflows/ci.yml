@@ -46,4 +46,4 @@ jobs:
           cache: true
           cache-dependency-glob: "**/uv.lock"
       - name: Run ci
-        run: uv run --with "Django==${{ matrix.django-version }}" pytest example/demo/tests example/transport_network/tests
+        run: uv run --extra dev --with "Django==${{ matrix.django-version }}" pytest example/demo/tests example/transport_network/tests
