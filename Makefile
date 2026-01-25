@@ -1,17 +1,18 @@
 deps:
-	@poetry install
+	@uv sync --extra dev
 
 build: deps
 	rm -fR dist/
-	poetry build
+	uv build
 
 docs: deps
-	sphinx-build -M html docs/source/ docs/build/
+	uv run sphinx-build -M html docs/source/ docs/build/
 
 test: deps
-	pytest example/demo/tests example/transport_network/tests
+	uv run pytest example/demo/tests example/transport_network/tests
 
-lint: deps build
-	pre-commit run -a
+lint: deps
+	uv run ruff check .
+	uv run ruff format --check .
 
 ci: lint test

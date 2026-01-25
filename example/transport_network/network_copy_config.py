@@ -59,9 +59,7 @@ def find_matching_stops_by_nodes(
 ) -> "FieldSetToFilterMap":
     stop_id_list = [s.id for s in referenced_instance_list]
 
-    stops_with_nodes = list(
-        Stop.objects.filter(id__in=stop_id_list).select_related("node")
-    )
+    stops_with_nodes = list(Stop.objects.filter(id__in=stop_id_list).select_related("node"))
 
     point_list = [s.node.point for s in stops_with_nodes]
     substitute_stops = Stop.objects.filter(
@@ -116,9 +114,7 @@ def find_matching_edges(
     point_to_substitute_list: dict[tuple[str, str], int] = {}
     substitute_map: dict[int, Edge] = {}
     for edge in substitute_list:
-        point_to_substitute_list[(edge.first_node.point, edge.last_node.point)] = (
-            edge.id
-        )
+        point_to_substitute_list[(edge.first_node.point, edge.last_node.point)] = edge.id
         substitute_map[edge.id] = edge
 
     field_set_to_filter_map = {}
@@ -224,9 +220,7 @@ ROUTE_NETWORK_COPY_CONFIG = ModelCopyConfig(
         "scenario_id": "origin_scenario_id",
     },
     data_preparation_steps=[
-        DataPreparationStep(
-            action=DataModificationActions.EXECUTE_FUNC, func=delete_forecasts
-        ),
+        DataPreparationStep(action=DataModificationActions.EXECUTE_FUNC, func=delete_forecasts),
         DataPreparationStep(
             action=DataModificationActions.DELETE_BY_FILTER,
             filter_field_to_input_key={

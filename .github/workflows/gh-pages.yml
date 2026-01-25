@@ -10,15 +10,17 @@ on:
 jobs:
   build:
     runs-on: ubuntu-latest
+    env:
+      UV_PYTHON: "3.11"
     steps:
       - uses: actions/checkout@v4
-      - uses: actions/setup-python@v4
+      - uses: actions/setup-python@v5
         with:
           python-version: "3.11"
-      - name: Install and configure Poetry
-        run: |
-          pip install -U pip poetry
-          poetry config virtualenvs.create false
+      - uses: astral-sh/setup-uv@v5
+        with:
+          cache: true
+          cache-dependency-glob: "**/uv.lock"
       - name: Build docs
         run: make docs
       - uses: actions/upload-artifact@v4

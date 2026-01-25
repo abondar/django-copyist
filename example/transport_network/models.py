@@ -19,9 +19,7 @@ class DataFile(models.Model):
 class Project(models.Model):
     name = models.TextField(_("Название проекта"))
     created = models.DateTimeField(_("Дата начала проекта"), auto_now_add=True)
-    last_used_date = models.DateTimeField(
-        _("Время последнего использования"), default=timezone.now
-    )
+    last_used_date = models.DateTimeField(_("Время последнего использования"), default=timezone.now)
     last_data_id = models.PositiveIntegerField(default=0)
 
     class Meta:
@@ -29,42 +27,30 @@ class Project(models.Model):
 
 
 class ProjectFile(models.Model):
-    project = models.ForeignKey(
-        Project, related_name="source_files", on_delete=models.CASCADE
-    )
+    project = models.ForeignKey(Project, related_name="source_files", on_delete=models.CASCADE)
     file = models.ForeignKey(
         DataFile,
         related_name="project_files",
         on_delete=models.CASCADE,
     )
-    error_messages = models.JSONField(
-        _("Load error messages"), blank=True, default=list
-    )
+    error_messages = models.JSONField(_("Load error messages"), blank=True, default=list)
 
 
 class Municipality(models.Model):
-    project = models.ForeignKey(
-        Project, related_name="municipalities", on_delete=models.CASCADE
-    )
+    project = models.ForeignKey(Project, related_name="municipalities", on_delete=models.CASCADE)
     name = models.CharField(max_length=200)
 
 
 class RegionType(models.Model):
-    project = models.ForeignKey(
-        Project, related_name="region_types", on_delete=models.CASCADE
-    )
+    project = models.ForeignKey(Project, related_name="region_types", on_delete=models.CASCADE)
     name = models.CharField(max_length=100)
 
 
 class Region(models.Model):
-    project = models.ForeignKey(
-        Project, related_name="regions", on_delete=models.CASCADE
-    )
+    project = models.ForeignKey(Project, related_name="regions", on_delete=models.CASCADE)
     name = models.CharField(max_length=200)
     source_dist_id = models.IntegerField()
-    region_type = models.ForeignKey(
-        RegionType, related_name="regions", on_delete=models.CASCADE
-    )
+    region_type = models.ForeignKey(RegionType, related_name="regions", on_delete=models.CASCADE)
     municipality = models.ForeignKey(
         Municipality,
         blank=True,
@@ -75,9 +61,7 @@ class Region(models.Model):
 
 
 class Scenario(models.Model):
-    project = models.ForeignKey(
-        Project, related_name="scenarios", on_delete=models.CASCADE
-    )
+    project = models.ForeignKey(Project, related_name="scenarios", on_delete=models.CASCADE)
     name = models.CharField(max_length=100)
     scenario_id = models.IntegerField()
     is_base = models.BooleanField(default=False)
@@ -85,9 +69,7 @@ class Scenario(models.Model):
 
 
 class Interval(models.Model):
-    project = models.ForeignKey(
-        Project, related_name="intervals", on_delete=models.CASCADE
-    )
+    project = models.ForeignKey(Project, related_name="intervals", on_delete=models.CASCADE)
     interval_id = models.IntegerField()
     interval_name = models.CharField(max_length=100)
     day_type = models.CharField(max_length=100)
@@ -100,18 +82,14 @@ class Interval(models.Model):
 
 
 class Category(models.Model):
-    project = models.ForeignKey(
-        Project, related_name="categories", on_delete=models.CASCADE
-    )
+    project = models.ForeignKey(Project, related_name="categories", on_delete=models.CASCADE)
     category_id = models.IntegerField()
     name = models.CharField(max_length=50)
     is_public = models.BooleanField()
 
 
 class BehaviorType(models.Model):
-    project = models.ForeignKey(
-        Project, related_name="behavior_types", on_delete=models.CASCADE
-    )
+    project = models.ForeignKey(Project, related_name="behavior_types", on_delete=models.CASCADE)
     name = models.CharField(max_length=100)
     behavior_id = models.PositiveSmallIntegerField()
     apply_remote_percent = models.BooleanField()
@@ -121,16 +99,12 @@ class BehaviorCategoryValue(models.Model):
     behavior_type = models.ForeignKey(
         BehaviorType, on_delete=models.CASCADE, related_name="category_values"
     )
-    category = models.ForeignKey(
-        Category, on_delete=models.CASCADE, related_name="behavior_values"
-    )
+    category = models.ForeignKey(Category, on_delete=models.CASCADE, related_name="behavior_values")
     value = models.FloatField()
 
 
 class VehicleType(models.Model):
-    project = models.ForeignKey(
-        Project, related_name="vehicle_types", on_delete=models.CASCADE
-    )
+    project = models.ForeignKey(Project, related_name="vehicle_types", on_delete=models.CASCADE)
     name = models.CharField(_("type ts"), max_length=32)
     max_speed = models.IntegerField()
     is_public = models.BooleanField()
@@ -139,13 +113,9 @@ class VehicleType(models.Model):
 
 
 class VehicleClass(models.Model):
-    project = models.ForeignKey(
-        Project, related_name="vehicle_classes", on_delete=models.CASCADE
-    )
+    project = models.ForeignKey(Project, related_name="vehicle_classes", on_delete=models.CASCADE)
     name = models.CharField(_("type ts"), max_length=32)
-    vehicle_type = models.ForeignKey(
-        VehicleType, related_name="classes", on_delete=models.CASCADE
-    )
+    vehicle_type = models.ForeignKey(VehicleType, related_name="classes", on_delete=models.CASCADE)
     sits = models.IntegerField()
     area = models.IntegerField()
     capacity = models.IntegerField()
@@ -153,19 +123,13 @@ class VehicleClass(models.Model):
 
 class Node(models.Model):
     point = models.TextField()
-    scenario = models.ForeignKey(
-        Scenario, related_name="nodes", on_delete=models.CASCADE
-    )
+    scenario = models.ForeignKey(Scenario, related_name="nodes", on_delete=models.CASCADE)
 
 
 class Edge(models.Model):
     source_edge_id = models.PositiveIntegerField()
-    first_node = models.ForeignKey(
-        Node, related_name="edges_starts", on_delete=models.CASCADE
-    )
-    last_node = models.ForeignKey(
-        Node, related_name="edges_ends", on_delete=models.CASCADE
-    )
+    first_node = models.ForeignKey(Node, related_name="edges_starts", on_delete=models.CASCADE)
+    last_node = models.ForeignKey(Node, related_name="edges_ends", on_delete=models.CASCADE)
     length = models.FloatField()
     scenario = models.ForeignKey(
         Scenario, null=True, blank=True, related_name="edges", on_delete=models.CASCADE
@@ -181,9 +145,7 @@ class Edge(models.Model):
 
 
 class EdgeVehicleSpeed(models.Model):
-    edge = models.ForeignKey(
-        Edge, related_name="vehicle_speeds", on_delete=models.CASCADE
-    )
+    edge = models.ForeignKey(Edge, related_name="vehicle_speeds", on_delete=models.CASCADE)
     interval = models.ForeignKey(Interval, on_delete=models.CASCADE)
 
     vehicle_type = models.ForeignKey(VehicleType, on_delete=models.CASCADE)
@@ -197,9 +159,7 @@ class Stop(models.Model):
     stop_id = models.PositiveIntegerField(_("stop id"))
     stop_name = models.CharField(_("stop name"), max_length=200)
     node = models.ForeignKey(Node, related_name="stops", on_delete=models.CASCADE)
-    route_directions = models.ManyToManyField(
-        "RouteDirection", through="RouteDirectionNode"
-    )
+    route_directions = models.ManyToManyField("RouteDirection", through="RouteDirectionNode")
 
     def save(self, *args, **kwargs):
         if not self.stop_id:
@@ -240,9 +200,7 @@ class Route(models.Model):
     carrier = models.CharField(max_length=100)
     scenario = models.ForeignKey(Scenario, on_delete=models.CASCADE)
     attributes = models.ManyToManyField("RouteAttribute", related_name="routes")
-    communication_type = models.ForeignKey(
-        CommunicationType, on_delete=models.CASCADE, null=True
-    )
+    communication_type = models.ForeignKey(CommunicationType, on_delete=models.CASCADE, null=True)
     season = models.ForeignKey(Season, on_delete=models.CASCADE, null=True)
     regular_transportation_type = models.ForeignKey(
         RegularTransportationType, on_delete=models.CASCADE, null=True
@@ -270,9 +228,7 @@ class RouteVariant(models.Model):
 
 
 class RouteVehicleCount(models.Model):
-    route = models.ForeignKey(
-        Route, related_name="vehicle_count", on_delete=models.CASCADE
-    )
+    route = models.ForeignKey(Route, related_name="vehicle_count", on_delete=models.CASCADE)
     vehicle_class = models.ForeignKey(VehicleClass, on_delete=models.CASCADE)
     count = models.PositiveSmallIntegerField()
 
@@ -337,18 +293,14 @@ class RouteAttribute(models.Model):
 
 
 class ProjectShape(models.Model):
-    project = models.ForeignKey(
-        Project, related_name="models", on_delete=models.CASCADE
-    )
+    project = models.ForeignKey(Project, related_name="models", on_delete=models.CASCADE)
     created = models.DateTimeField(auto_now_add=True)
     content = models.TextField()
 
 
 class Forecast(models.Model):
     name = models.CharField(max_length=100)
-    shape = models.ForeignKey(
-        ProjectShape, related_name="forecasts", on_delete=models.CASCADE
-    )
+    shape = models.ForeignKey(ProjectShape, related_name="forecasts", on_delete=models.CASCADE)
     created = models.DateTimeField(auto_now_add=True)
     remote_jobs_percent = models.FloatField(default=0)
     partial_remote_jobs_percent = models.FloatField(default=0)
@@ -382,39 +334,23 @@ class RegionTraffic(models.Model):
         related_name="forecast_traffic",
         on_delete=models.CASCADE,
     )
-    scenario = models.ForeignKey(
-        Scenario, blank=True, null=True, on_delete=models.CASCADE
-    )
-    interval = models.ForeignKey(
-        Interval, blank=True, null=True, on_delete=models.CASCADE
-    )
+    scenario = models.ForeignKey(Scenario, blank=True, null=True, on_delete=models.CASCADE)
+    interval = models.ForeignKey(Interval, blank=True, null=True, on_delete=models.CASCADE)
     ttc = models.FloatField(blank=True, null=True)
     source = models.CharField(max_length=100)
 
 
 class Indicator(models.Model):
     name = models.CharField(max_length=100)
-    project = models.ForeignKey(
-        Project, related_name="indicators", on_delete=models.CASCADE
-    )
-    vehicle_type = models.ForeignKey(
-        VehicleType, blank=True, null=True, on_delete=models.CASCADE
-    )
-    category = models.ForeignKey(
-        Category, blank=True, null=True, on_delete=models.CASCADE
-    )
+    project = models.ForeignKey(Project, related_name="indicators", on_delete=models.CASCADE)
+    vehicle_type = models.ForeignKey(VehicleType, blank=True, null=True, on_delete=models.CASCADE)
+    category = models.ForeignKey(Category, blank=True, null=True, on_delete=models.CASCADE)
     value = models.FloatField()
 
 
 class IndicatorString(models.Model):
     name = models.CharField(max_length=100)
-    project = models.ForeignKey(
-        Project, related_name="indicator_strings", on_delete=models.CASCADE
-    )
-    vehicle_type = models.ForeignKey(
-        VehicleType, blank=True, null=True, on_delete=models.CASCADE
-    )
-    category = models.ForeignKey(
-        Category, blank=True, null=True, on_delete=models.CASCADE
-    )
+    project = models.ForeignKey(Project, related_name="indicator_strings", on_delete=models.CASCADE)
+    vehicle_type = models.ForeignKey(VehicleType, blank=True, null=True, on_delete=models.CASCADE)
+    category = models.ForeignKey(Category, blank=True, null=True, on_delete=models.CASCADE)
     value = models.CharField(max_length=100)

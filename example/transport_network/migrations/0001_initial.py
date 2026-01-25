@@ -8,7 +8,6 @@ from django.db import migrations, models
 
 
 class Migration(migrations.Migration):
-
     initial = True
 
     dependencies = [
@@ -95,9 +94,7 @@ class Migration(migrations.Migration):
                 ("name", models.TextField(verbose_name="Название проекта")),
                 (
                     "created",
-                    models.DateTimeField(
-                        auto_now_add=True, verbose_name="Дата начала проекта"
-                    ),
+                    models.DateTimeField(auto_now_add=True, verbose_name="Дата начала проекта"),
                 ),
                 (
                     "last_used_date",
@@ -381,9 +378,7 @@ class Migration(migrations.Migration):
                 ),
                 (
                     "error_messages",
-                    models.JSONField(
-                        blank=True, default=list, verbose_name="Load error messages"
-                    ),
+                    models.JSONField(blank=True, default=list, verbose_name="Load error messages"),
                 ),
                 (
                     "file",
@@ -1133,8 +1128,6 @@ class Migration(migrations.Migration):
         migrations.AddField(
             model_name="edge",
             name="vehicle_types",
-            field=models.ManyToManyField(
-                related_name="edges", to="transport_network.vehicletype"
-            ),
+            field=models.ManyToManyField(related_name="edges", to="transport_network.vehicletype"),
         ),
     ]

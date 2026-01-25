@@ -1,4 +1,4 @@
-from typing import TYPE_CHECKING, Any, List
+from typing import TYPE_CHECKING, Any
 
 from django.db.models import Q
 
@@ -119,7 +119,7 @@ def set_base_region_traffic(
     input_data: dict[str, Any],
     set_to_filter_map: "SetToFilterMap",
     output_map: "OutputMap",
-    copy_intent_list: "List[CopyIntent]",
+    copy_intent_list: "list[CopyIntent]",
 ) -> None:
     base_traffic_to_key = {}
     for copy_intent in copy_intent_list:

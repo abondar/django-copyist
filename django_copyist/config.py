@@ -1,6 +1,6 @@
 from dataclasses import dataclass, field
 from enum import StrEnum
-from typing import TYPE_CHECKING, Any, List, Optional, Protocol
+from typing import TYPE_CHECKING, Any, Optional, Protocol
 
 from django.db.models import Model, Q, QuerySet
 
@@ -46,9 +46,7 @@ class IgnoreFilter:
     filter_name: str
     set_to_filter_origin_model: type[Model]
     set_to_filter_field_name: str
-    filter_source: IgnoreFilterSource = (
-        IgnoreFilterSource.UNMATCHED_SET_TO_FILTER_VALUES
-    )
+    filter_source: IgnoreFilterSource = IgnoreFilterSource.UNMATCHED_SET_TO_FILTER_VALUES
 
 
 class IgnoreFunc(Protocol):
@@ -108,9 +106,7 @@ class IgnoreCondition:
 
     def __post_init__(self):
         if bool(self.ignore_func) == bool(self.filter_conditions):
-            raise ValueError(
-                "Only one of filter_conditions and ignore_func should be declared"
-            )
+            raise ValueError("Only one of filter_conditions and ignore_func should be declared")
 
 
 class CopyActions(StrEnum):
@@ -213,9 +209,7 @@ class FilterConfig:
 
     def __post_init__(self):
         if bool(self.filters) == bool(self.filter_func):
-            raise ValueError(
-                "Filter config should define one of: 'filters', 'filter_func'"
-            )
+            raise ValueError("Filter config should define one of: 'filters', 'filter_func'")
 
 
 @dataclass
@@ -340,9 +334,7 @@ class DataModificationStep:
 
     def __post_init__(self):
         if bool(self.func) == bool(self.filter_field_to_input_key):
-            raise ValueError(
-                "Only one of func and filter_field_to_input_key should be declared"
-            )
+            raise ValueError("Only one of func and filter_field_to_input_key should be declared")
 
 
 @dataclass
@@ -357,7 +349,7 @@ class PostcopyFunc(Protocol):
         input_data: dict[str, Any],
         set_to_filter_map: "SetToFilterMap",
         output_map: "OutputMap",
-        copy_intent_list: "List[CopyIntent]",
+        copy_intent_list: "list[CopyIntent]",
     ) -> None:
         """
         A protocol that defines a function to be used for post-copy operations.

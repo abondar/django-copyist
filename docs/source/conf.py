@@ -16,7 +16,7 @@ with open("../../pyproject.toml", "rb") as f:
 project = "django-copyist"
 copyright = "2024, abondar"
 author = "abondar"
-release = _META["tool"]["poetry"]["version"]
+release = _META["project"]["version"]
 
 # -- General configuration ---------------------------------------------------
 # https://www.sphinx-doc.org/en/master/usage/configuration.html#general-configuration

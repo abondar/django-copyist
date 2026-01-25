@@ -47,11 +47,11 @@ To install with pip:
 
    pip install django-copyist
 
-To install with poetry:
+To install with uv:
 
 .. code-block:: console
 
-   poetry add django-copyist
+   uv add django-copyist
 
 
 Usage
