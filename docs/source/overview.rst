@@ -74,8 +74,8 @@ This is the most common usecase. You have a model and you want to copy it to ano
     )
     result = Copyist(copy_request).execute_copy_request()
     assert result.is_copy_successful
-    assert len(result.output_map["Company"]) == 1
-    new_company_id = result.output_map["Company"][str(company.id)]
+    assert len(result.copies_of(Company)) == 1
+    new_company_id = result.copies_of(Company)[str(company.id)]
     new_company = Company.objects.get(id=new_company_id)
     assert new_company.name == company.name
 
@@ -109,7 +109,7 @@ Sometimes you want to copy a model but you want to set value from some other sou
         confirm_write=False,
     )
     result = Copyist(copy_request).execute_copy_request()
-    new_company_id = result.output_map["Company"][str(company.id)]
+    new_company_id = result.copies_of(Company)[str(company.id)]
     new_company = Company.objects.get(id=new_company_id)
     assert new_company.name == "New Company"
 
@@ -231,6 +231,8 @@ This way you can first copy all parent models, and then use compound actions to 
 
 
 
+.. _copy-request-and-result:
+
 Closer look at CopyRequest and CopyResult
 -----------------------------------------
 
@@ -345,10 +347,10 @@ exists in target context. You can do this by using the :py:attr:`.SET_TO_FILTER`
     ).execute_copy_request()
 
     assert result.is_copy_successful
-    assert len(result.output_map["Employee"]) == 1
-    assert len(result.output_map["Task"]) == 1
+    assert len(result.copies_of(Employee)) == 1
+    assert len(result.copies_of(Task)) == 1
 
-    new_task_id = result.output_map["Task"][str(task.id)]
+    new_task_id = result.copies_of(Task)[str(task.id)]
     new_task = Task.objects.get(id=new_task_id)
     assert new_task.project_id == project2.id
     assert new_task.counterparts.count() == 1
@@ -464,7 +466,7 @@ Above example is great and works well, but what if destination project doesn't h
 
     assert result.is_copy_successful
 
-    new_task_id = result.output_map["Task"][str(task.id)]
+    new_task_id = result.copies_of(Task)[str(task.id)]
     new_task = Task.objects.get(id=new_task_id)
     assert new_task.counterparts.count() == 1
 
@@ -577,10 +579,10 @@ In this cases `filter_func` of :py:class:`~.django_copyist.config.FilterConfig` 
     ).execute_copy_request()
 
     assert result.is_copy_successful
-    assert len(result.output_map["Employee"]) == 1
-    assert len(result.output_map["Task"]) == 1
+    assert len(result.copies_of(Employee)) == 1
+    assert len(result.copies_of(Task)) == 1
 
-    new_task_id = result.output_map["Task"][str(task.id)]
+    new_task_id = result.copies_of(Task)[str(task.id)]
     new_task = Task.objects.get(id=new_task_id)
     assert new_task.project_id == project2.id
     assert new_task.counterparts.count() == 1
@@ -997,10 +999,10 @@ Copyist allows you to do it, using `static_filter` of :py:class:`~.django_copyis
     ).execute_copy_request()
 
     assert result.is_copy_successful
-    assert len(result.output_map["Company"]) == 1
-    assert len(result.output_map["Employee"]) == 1
+    assert len(result.copies_of(Company)) == 1
+    assert len(result.copies_of(Employee)) == 1
 
-    new_company_id = result.output_map["Company"][str(company.id)]
+    new_company_id = result.copies_of(Company)[str(company.id)]
     new_employees = Employee.objects.filter(company_id=new_company_id)
     assert len(new_employees) == 1
     new_employee = new_employees[0]

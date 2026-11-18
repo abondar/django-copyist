@@ -129,6 +129,7 @@ class NodeFactory(DjangoModelFactory):
 class EdgeFactory(DjangoModelFactory):
     class Meta:
         model = Edge
+        skip_postgeneration_save = True
 
     first_node = factory.SubFactory(NodeFactory)
     last_node = factory.SubFactory(NodeFactory)

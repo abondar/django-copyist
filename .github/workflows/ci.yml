@@ -9,30 +9,40 @@ jobs:
   lint:
     runs-on: ubuntu-latest
     env:
-      UV_PYTHON: "3.11"
+      UV_PYTHON: "3.14"
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
         with:
-          python-version: "3.11"
+          python-version: "3.14"
       - uses: astral-sh/setup-uv@v5
         with:
           cache: true
           cache-dependency-glob: "**/uv.lock"
       - name: Run lint
         run: make lint
+      - name: Run mypy
+        run: make typecheck
 
   test:
     runs-on: ubuntu-latest
     strategy:
+      fail-fast: false
       matrix:
-        python-version: ["3.11", "3.12", "3.13", "3.14"]
-        django-version: ["4.2.*", "5.2.*"]
+        python-version: ["3.11", "3.12", "3.13", "3.14", "3.15"]
+        django-version: ["5.2.*", "6.0.*", "6.1.*"]
         exclude:
-          - python-version: "3.13"
-            django-version: "4.2.*"
-          - python-version: "3.14"
-            django-version: "4.2.*"
+          # Django 5.2 supports Python 3.10-3.14
+          - python-version: "3.15"
+            django-version: "5.2.*"
+          # Django 6.0 supports Python 3.12-3.14
+          - python-version: "3.11"
+            django-version: "6.0.*"
+          - python-version: "3.15"
+            django-version: "6.0.*"
+          # Django 6.1 supports Python 3.12-3.15
+          - python-version: "3.11"
+            django-version: "6.1.*"
     env:
       UV_PYTHON: ${{ matrix.python-version }}
     steps:
@@ -40,10 +50,66 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: ${{ matrix.python-version }}
-          allow-prerelease: true
       - uses: astral-sh/setup-uv@v5
         with:
           cache: true
           cache-dependency-glob: "**/uv.lock"
-      - name: Run ci
-        run: uv run --extra dev --with "Django==${{ matrix.django-version }}" pytest example/demo/tests example/transport_network/tests
+      - name: Run tests
+        run: uv run --extra dev --with "Django==${{ matrix.django-version }}" pytest --cov=django_copyist --cov-branch
+
+  test-postgres:
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        django-version: ["5.2.*", "6.0.*", "6.1.*"]
+        # Django 6.1 needs PostgreSQL 15+. Django 5.2 and 6.0 also run on 14.
+        postgres-version: ["15", "18"]
+        include:
+          - django-version: "5.2.*"
+            postgres-version: "14"
+    services:
+      postgres:
+        image: postgres:${{ matrix.postgres-version }}
+        env:
+          POSTGRES_PASSWORD: postgres
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+    env:
+      UV_PYTHON: "3.14"
+      POSTGRES_HOST: localhost
+      POSTGRES_PORT: "5432"
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.14"
+      - uses: astral-sh/setup-uv@v5
+        with:
+          cache: true
+          cache-dependency-glob: "**/uv.lock"
+      - name: Run tests on PostgreSQL ${{ matrix.postgres-version }}
+        run: uv run --extra dev --with "Django==${{ matrix.django-version }}" pytest
+
+  docs:
+    runs-on: ubuntu-latest
+    env:
+      UV_PYTHON: "3.14"
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.14"
+      - uses: astral-sh/setup-uv@v5
+        with:
+          cache: true
+          cache-dependency-glob: "**/uv.lock"
+      - name: Build docs
+        run: make docs

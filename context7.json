@@ -1,0 +1,29 @@
+{
+  "$schema": "https://context7.com/schema/context7.json",
+  "projectTitle": "django-copyist",
+  "description": "Deep-copy Django model instances with their related objects (one-to-many children, many-to-many links) using a declarative config and bulk_create.",
+  "folders": [],
+  "excludeFolders": [
+    "docs/build",
+    "dist",
+    "migrations",
+    "benchmarks",
+    ".github",
+    "example/transport_network",
+    "example/edge_cases"
+  ],
+  "excludeFiles": [],
+  "rules": [
+    "Import public names from the package root: from django_copyist import ModelCopyConfig, MakeCopy, TAKE_FROM_ORIGIN, TakeFromInput, UpdateToCopied, run_copy, check_config.",
+    "Run a copy with run_copy(config, input_data={...}). Check result.is_copy_successful before reading result.output_map.",
+    "Read copied primary keys with result.copies_of(Model), which returns {origin_pk_str: copy_pk_str}. Map keys are class names like 'Company'. If two copied models share a class name, pass run_copy(..., map_keys=MapKeys.LABEL) to key by 'app_label.ModelName'.",
+    "A root ModelCopyConfig needs filter_field_to_input_key, for example {'id': 'company_id'}, and input_data must contain that key.",
+    "Use MakeCopy(ModelCopyConfig(...)) only on reverse foreign keys (one-to-many accessors such as 'projects'). The child's FK to the copied parent is set automatically; do not list it.",
+    "Fields missing from field_copy_actions get their default value. List every field to keep with TAKE_FROM_ORIGIN.",
+    "A model that points to several copied parents goes into compound_copy_actions with UpdateToCopied(ParentModel) on each foreign key.",
+    "Validate every config in a test with check_config(config, raise_on_error=True). It runs no queries.",
+    "Generate a starting config with python manage.py copyist_scaffold app.Model --depth 2 after adding 'django_copyist' to INSTALLED_APPS.",
+    "Copies use bulk_create: save() and pre_save/post_save signals do not run. Use PostcopyStep for side effects.",
+    "Supported: Python 3.11+, Django 5.2/6.0/6.1, PostgreSQL, SQLite 3.35+, MariaDB 10.5+. MySQL and Oracle fail for auto-increment primary keys."
+  ]
+}
