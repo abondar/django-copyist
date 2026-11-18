@@ -21,6 +21,8 @@ jobs:
           cache-dependency-glob: "**/uv.lock"
       - name: Run lint
         run: make lint
+      - name: Run mypy
+        run: make typecheck
 
   test:
     runs-on: ubuntu-latest

@@ -1,5 +1,7 @@
+from typing import Any
+
 from django.apps import apps
-from django.core.management.base import BaseCommand, CommandError
+from django.core.management.base import BaseCommand, CommandError, CommandParser
 
 from django_copyist.checks import ConfigIssueLevel, check_config
 from django_copyist.scaffold import scaffold_config
@@ -11,7 +13,7 @@ class Command(BaseCommand):
         "from the origin and one-to-many children down to --depth levels."
     )
 
-    def add_arguments(self, parser):
+    def add_arguments(self, parser: CommandParser) -> None:
         parser.add_argument("model", help="Model label, for example 'shop.Order'.")
         parser.add_argument(
             "--depth",
@@ -27,7 +29,7 @@ class Command(BaseCommand):
             help="Do not run check_config() on the generated config.",
         )
 
-    def handle(self, *args, **options):
+    def handle(self, *args: Any, **options: Any) -> None:
         try:
             model = apps.get_model(options["model"])
         except (LookupError, ValueError) as e:
@@ -49,7 +51,7 @@ class Command(BaseCommand):
 
         if options["no_check"]:
             return
-        namespace: dict = {}
+        namespace: dict[str, Any] = {}
         exec(compile(source, "<copyist_scaffold>", "exec"), namespace)
         config = namespace[self._name(source)]
         issues = check_config(config)

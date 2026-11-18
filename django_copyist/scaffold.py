@@ -10,9 +10,10 @@ import keyword
 import re
 import textwrap
 from dataclasses import dataclass, field
+from typing import Any, cast
 
 from django.db import models
-from django.db.models import Model
+from django.db.models import ForeignObjectRel, Model
 
 from django_copyist.checks import _has_default, _is_filled_by_database_or_django
 
@@ -62,7 +63,7 @@ class _Generator:
                 self.collect_tree(rel.related_model, depth - 1)
 
     @staticmethod
-    def _children(model: type[Model]) -> list:
+    def _children(model: type[Model]) -> list[ForeignObjectRel]:
         return [
             rel
             for rel in model._meta.related_objects
@@ -74,7 +75,7 @@ class _Generator:
         model: type[Model],
         level: int,
         depth: int,
-        parent_fk: models.Field | None,
+        parent_fk: "models.Field[Any, Any] | None",
         visited: set[type[Model]],
         root_input_key: str | None,
     ) -> list[str]:
@@ -136,7 +137,7 @@ class _Generator:
 
         for m2m in model._meta.many_to_many:
             key = _literal(m2m.name)
-            through = m2m.remote_field.through
+            through = cast("type[Model]", m2m.remote_field.through)
             if not through._meta.auto_created:
                 link_names = {m2m.m2m_field_name(), m2m.m2m_reverse_field_name()}
                 required = [
@@ -170,6 +171,9 @@ class _Generator:
 
         for rel in self._children(model):
             accessor = rel.get_accessor_name()
+            if accessor is None:
+                # Hidden relation (related_name ending with "+"): no accessor to copy by.
+                continue
             child = rel.related_model
             key = _literal(accessor)
             if depth <= 0:
@@ -218,7 +222,7 @@ class _Generator:
                 lines.extend(
                     _comment(
                         body,
-                        f"{_literal(rel.get_accessor_name())}: reverse one-to-one "
+                        f"{_literal(rel.get_accessor_name() or rel.name)}: reverse one-to-one "
                         f"{rel.related_model.__name__} is not copied (not supported by MakeCopy).",
                     )
                 )

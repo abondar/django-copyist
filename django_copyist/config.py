@@ -106,7 +106,7 @@ class IgnoreCondition:
     filter_conditions: list[IgnoreFilter] | None = None
     ignore_func: IgnoreFunc | None = None
 
-    def __post_init__(self):
+    def __post_init__(self) -> None:
         if bool(self.ignore_func) == bool(self.filter_conditions):
             raise ValueError("Only one of filter_conditions and ignore_func should be declared")
 
@@ -142,7 +142,7 @@ class FieldFilterConfig:
     source: FilterSource
     key: str | None = None
 
-    def __post_init__(self):
+    def __post_init__(self) -> None:
         if self.source == FilterSource.FROM_INPUT and not self.key:
             raise ValueError("FROM_INPUT filter source should define key")
 
@@ -210,7 +210,7 @@ class FilterConfig:
     filters: dict[str, FieldFilterConfig] | None = None
     filter_func: SetToFilterFunc | None = None
 
-    def __post_init__(self):
+    def __post_init__(self) -> None:
         if bool(self.filters) == bool(self.filter_func):
             raise ValueError("Filter config should define one of: 'filters', 'filter_func'")
 
@@ -250,7 +250,7 @@ class FieldCopyConfig:
     filter_config: FilterConfig | None = None
     input_key: str | None = None
 
-    def __post_init__(self):
+    def __post_init__(self) -> None:
         if self.action == CopyActions.MAKE_COPY and not self.copy_with_config:
             raise ValueError("MAKE_COPY action should define copy_with_config")
         elif self.action == CopyActions.UPDATE_TO_COPIED and not self.reference_to:
@@ -348,7 +348,7 @@ class DataModificationStep:
     filter_field_to_input_key: dict[str, str] | None = None
     func: Callable[..., None] | None = None
 
-    def __post_init__(self):
+    def __post_init__(self) -> None:
         if bool(self.func) == bool(self.filter_field_to_input_key):
             raise ValueError("Only one of func and filter_field_to_input_key should be declared")
 
@@ -466,7 +466,7 @@ def get_queryset_for_model_config(
     input_data: dict[str, Any],
     using: str | None = None,
     scoped_by_caller: bool = False,
-) -> QuerySet:
+) -> QuerySet[Model]:
     model_class = model_config.model
     if not (model_config.filter_field_to_input_key or extra_filters or scoped_by_caller):
         raise ValueError(

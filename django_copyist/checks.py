@@ -14,12 +14,11 @@ configuration you ship::
 from collections import Counter
 from dataclasses import dataclass
 from enum import StrEnum
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Any, cast
 
-from django.core.exceptions import ImproperlyConfigured
+from django.core.exceptions import FieldDoesNotExist, ImproperlyConfigured
 from django.db import models
-from django.db.models import Model
-from django.db.models.fields import AutoFieldMixin
+from django.db.models import GeneratedField, Model
 from django.db.models.fields.related_descriptors import (
     ForwardManyToOneDescriptor,
     ManyToManyDescriptor,
@@ -38,11 +37,6 @@ from django_copyist.config import (
 
 if TYPE_CHECKING:
     from django_copyist.copyist import CopyistConfig
-
-try:  # Django 5.0+
-    from django.db.models import GeneratedField
-except ImportError:  # pragma: no cover
-    GeneratedField = None
 
 
 class ConfigIssueLevel(StrEnum):
@@ -95,39 +89,45 @@ def _relation_kind(model: type[Model], name: str) -> str | None:
     return None
 
 
-def _concrete_field(model: type[Model], name: str) -> models.Field | None:
+def _concrete_field(model: type[Model], name: str) -> "models.Field[Any, Any] | None":
     """Concrete field for a name or attname (``project`` or ``project_id``)."""
     try:
         field = model._meta.get_field(name)
-    except Exception:
+    except FieldDoesNotExist:
         return None
-    return field if getattr(field, "concrete", False) else None
+    if isinstance(field, models.Field) and field.concrete:
+        return field
+    return None
 
 
-def _related_model(model: type[Model], name: str) -> type[Model] | None:
+def _related_model(model: type[Model], name: str) -> type[Model]:
+    """Model on the other side of relation ``name``. ``name`` must be a relation."""
     descriptor = getattr(model, name)
     if isinstance(descriptor, ManyToManyDescriptor):
-        return descriptor.field.model if descriptor.reverse else descriptor.field.related_model
-    if isinstance(descriptor, ReverseManyToOneDescriptor):
+        related = descriptor.field.model if descriptor.reverse else descriptor.field.related_model
+    elif isinstance(descriptor, ReverseManyToOneDescriptor):
         # The FK lives on the child model.
-        return descriptor.field.model
-    return descriptor.field.related_model
+        related = descriptor.field.model
+    else:
+        related = descriptor.field.related_model
+    return related
 
 
-def _is_filled_by_database_or_django(field: models.Field) -> bool:
+def _is_filled_by_database_or_django(field: "models.Field[Any, Any]") -> bool:
     if field.primary_key:
         # Auto-increment keys, keys with a default (uuid4) and MTI parent links get a
-        # value without the config. A key set by hand does not.
-        parent_link = field.remote_field is not None and field.remote_field.parent_link
-        return isinstance(field, AutoFieldMixin) or _has_default(field) or parent_link
-    if GeneratedField is not None and isinstance(field, GeneratedField):
+        # value without the config. A key set by hand does not. isinstance() with
+        # AutoField also matches BigAutoField and SmallAutoField.
+        parent_link = bool(field.remote_field is not None and field.remote_field.parent_link)
+        return isinstance(field, models.AutoField) or _has_default(field) or parent_link
+    if isinstance(field, GeneratedField):
         return True
     if getattr(field, "auto_now", False) or getattr(field, "auto_now_add", False):
         return True
     return False
 
 
-def _has_default(field: models.Field) -> bool:
+def _has_default(field: "models.Field[Any, Any]") -> bool:
     if field.has_default():
         return True
     db_default = getattr(field, "db_default", models.NOT_PROVIDED)
@@ -194,7 +194,7 @@ class _Checker:
     def check_model(
         self,
         config: ModelCopyConfig,
-        parent_fk: models.ForeignKey | None,
+        parent_fk: "models.ForeignKey[Any, Any] | None",
         is_root: bool,
     ) -> None:
         model = config.model
@@ -244,6 +244,7 @@ class _Checker:
                 field_config.action == CopyActions.MAKE_COPY
                 and _relation_kind(model, name) == "reverse_fk"
             ):
+                assert field_config.copy_with_config is not None  # set by __post_init__
                 self.check_model(
                     field_config.copy_with_config,
                     parent_fk=getattr(model, name).field,
@@ -300,12 +301,14 @@ class _Checker:
 
         if action in (CopyActions.UPDATE_TO_COPIED, CopyActions.SET_TO_FILTER):
             related = _related_model(model, name)
-            if field_config.reference_to is not related:
+            reference_to = field_config.reference_to
+            assert reference_to is not None  # set by __post_init__
+            if reference_to is not related:
                 self.error(
                     "copyist.E003",
                     model,
                     name,
-                    f"reference_to is {field_config.reference_to._meta.label}, but "
+                    f"reference_to is {reference_to._meta.label}, but "
                     f"'{name}' points to {related._meta.label}.",
                 )
         if (
@@ -333,6 +336,7 @@ class _Checker:
                 )
         if action == CopyActions.MAKE_COPY:
             related = _related_model(model, name)
+            assert field_config.copy_with_config is not None  # set by __post_init__
             nested_model = field_config.copy_with_config.model
             if nested_model is not related:
                 self.error(
@@ -436,7 +440,8 @@ class _Checker:
                 )
 
         for field in model._meta.many_to_many:
-            if not field.remote_field.through._meta.auto_created:
+            through = cast("type[Model]", field.remote_field.through)
+            if not through._meta.auto_created:
                 # Rows of a custom through model are copied like any other model.
                 continue
             if field.name not in config.field_copy_actions:

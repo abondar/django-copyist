@@ -50,7 +50,9 @@ Added
   instance.
 - Clear ``NotSupportedError`` when the database does not return primary keys from
   ``bulk_create`` (MySQL, Oracle).
-- ``py.typed`` marker: type checkers now use the package annotations.
+- ``py.typed`` marker: type checkers now use the package annotations. The package
+  passes ``mypy --strict`` with django-stubs, and CI checks it together with sample
+  user code (``example/typing_examples.py``).
 - Support for Django 6.0 and 6.1 and Python 3.15.
 - Benchmark against django-clone and a naive loop (``benchmarks/``, results in the docs).
 - ``llms.txt`` and ``llms-full.txt`` in the documentation for AI coding assistants.

@@ -1,7 +1,9 @@
+from __future__ import annotations
+
 import logging
 from collections.abc import Iterable
 from dataclasses import dataclass, field
-from typing import Any
+from typing import Any, TypeVar
 
 from django.core.exceptions import ImproperlyConfigured
 from django.db import IntegrityError, NotSupportedError, connections, router, transaction
@@ -17,6 +19,7 @@ from django_copyist.config import (
     DataModificationActions,
     DataModificationStep,
     FieldCopyConfig,
+    FilterConfig,
     FilterSource,
     IgnoreFilterSource,
     MapKeys,
@@ -29,6 +32,22 @@ from django_copyist.config import (
 from django_copyist.copy_request import AbortReason, CopyRequest, CopyResult
 
 logger = logging.getLogger(__name__)
+
+T = TypeVar("T")
+
+
+def _required(value: T | None, name: str) -> T:
+    """
+    Narrow an optional config attribute that ``__post_init__`` guarantees for the action.
+    """
+    if value is None:
+        raise ValueError(f"{name} is required for this action, but it is not set")
+    return value
+
+
+def filter_config_of(field_copy_config: FieldCopyConfig) -> FilterConfig:
+    return _required(field_copy_config.filter_config, "filter_config")
+
 
 FieldSetToFilterMap = dict[str, str | None]
 SetToFilterMap = dict[str, dict[str, FieldSetToFilterMap]]
@@ -63,7 +82,7 @@ class M2MCopyIntent:
     use_copied_related_instances: bool
     use_set_to_filter_values: bool
 
-    def __post_init__(self):
+    def __post_init__(self) -> None:
         for key in (self.backward_id_key, self.forward_id_key):
             if getattr(self.through_model, key, None) is None:
                 raise ValueError(
@@ -83,7 +102,7 @@ class CopyIntent:
 
     copied: Model | None = None
 
-    def __repr__(self):
+    def __repr__(self) -> str:
         return (
             f"CopyIntent: {self.origin.__class__._meta.label}\n"
             f"Copied: {bool(self.copied)}\n"
@@ -160,7 +179,7 @@ class Copyist:
         self._ignored_map: IgnoredMap | None = None
         self._ignore_conditions_to_resolve: list[IgnoreEvaluation] | None = None
 
-    def _manager(self, model: type[Model]) -> Manager:
+    def _manager(self, model: type[Model]) -> Manager[Model]:
         """
         Default manager of ``model`` bound to the requested database alias.
         """
@@ -190,12 +209,20 @@ class Copyist:
         return self._validation_affected_map
 
     @property
+    def _ignore_conditions(self) -> list[IgnoreEvaluation]:
+        if self._ignore_conditions_to_resolve is None:
+            raise AttributeError("ignore conditions referenced before validation")
+        return self._ignore_conditions_to_resolve
+
+    @property
     def ignored_map(self) -> IgnoredMap:
         if self._ignored_map is None:
             raise AttributeError("ignored_map referenced before validation")
         return self._ignored_map
 
-    def _filter_in(self, queryset: QuerySet, lookup: str, values: Iterable[Any]) -> list[Model]:
+    def _filter_in(
+        self, queryset: QuerySet[Model], lookup: str, values: Iterable[Any]
+    ) -> list[Model]:
         """
         Evaluate ``queryset.filter(**{lookup: values})`` for an ``__in`` lookup.
 
@@ -262,7 +289,7 @@ class Copyist:
             filter_key = f"{relation_key}__pk"
 
             return self._filter_in(
-                self._manager(field_copy_config.reference_to).distinct(),
+                self._manager(_required(field_copy_config.reference_to, "reference_to")).distinct(),
                 f"{filter_key}__in",
                 [i.pk for i in instance_list],
             )
@@ -274,7 +301,7 @@ class Copyist:
                 if getattr(instance, id_key_field_name) is not None
             ]
             return self._filter_in(
-                self._manager(field_copy_config.reference_to).all(),
+                self._manager(_required(field_copy_config.reference_to, "reference_to")).all(),
                 "pk__in",
                 referenced_id_values,
             )
@@ -289,14 +316,14 @@ class Copyist:
         field_copy_config: FieldCopyConfig,
         referenced_instance_list: list[Model],
     ) -> list[Model]:
-        referenced_model = field_copy_config.reference_to
+        referenced_model = _required(field_copy_config.reference_to, "reference_to")
         substitutes_query = self._manager(referenced_model).all()
         for (
             filter_field_name,
             filter_config,
-        ) in field_copy_config.filter_config.filters.items():
+        ) in (filter_config_of(field_copy_config).filters or {}).items():
             if filter_config.source == FilterSource.FROM_INPUT:
-                filter_value = self.input_data.get(filter_config.key)
+                filter_value = self.input_data.get(_required(filter_config.key, "key"))
                 if filter_value is None:
                     raise ValueError(
                         f"Filter {filter_field_name} was declared, "
@@ -321,7 +348,7 @@ class Copyist:
         field_set_to_filter_map: dict[str, str | None] = {}
         take_from_origin_filters = {
             k: v
-            for k, v in field_copy_config.filter_config.filters.items()
+            for k, v in (filter_config_of(field_copy_config).filters or {}).items()
             if v.source == FilterSource.FROM_ORIGIN
         }
         for referenced_instance in referenced_instance_list:
@@ -378,20 +405,21 @@ class Copyist:
         field_copy_config: FieldCopyConfig,
         set_to_filter_map: SetToFilterMap,
         instance_list: list[Model],
-    ):
+    ) -> None:
         referenced_instance_list = self._get_referenced_instance_list(
             model_config=model_config,
             field_name=field_name,
             field_copy_config=field_copy_config,
             instance_list=instance_list,
         )
-        if field_copy_config.filter_config.filters:
+        filter_config = filter_config_of(field_copy_config)
+        if filter_config.filters:
             field_set_to_filter_map = self._get_field_set_to_filter_map_for_filters(
                 field_copy_config=field_copy_config,
                 referenced_instance_list=referenced_instance_list,
             )
-        elif field_copy_config.filter_config.filter_func:
-            field_set_to_filter_map = field_copy_config.filter_config.filter_func(
+        elif filter_config.filter_func:
+            field_set_to_filter_map = filter_config.filter_func(
                 field_copy_config=field_copy_config,
                 field_name=field_name,
                 input_data=self.input_data,
@@ -412,9 +440,9 @@ class Copyist:
         model_config: ModelCopyConfig,
         field_copy_config: FieldCopyConfig,
         field_name: str,
-        set_to_filter_map: dict,
+        set_to_filter_map: SetToFilterMap,
         instance_list: list[Model],
-    ):
+    ) -> None:
         field_link = getattr(model_config.model, field_name, None)
         if not field_link:
             raise ValueError(
@@ -431,7 +459,7 @@ class Copyist:
         relation_field_name = field_link.field.attname
 
         self._run_validation_for_model(
-            model_config=field_copy_config.copy_with_config,
+            model_config=_required(field_copy_config.copy_with_config, "copy_with_config"),
             set_to_filter_map=set_to_filter_map,
             parent_filter=ParentFilter(relation_field_name, [i.pk for i in instance_list]),
         )
@@ -458,7 +486,7 @@ class Copyist:
             if field_copy_config.action != CopyActions.UPDATE_TO_COPIED:
                 continue
 
-            if field_copy_config.reference_to == model_config.model:
+            if _required(field_copy_config.reference_to, "reference_to") == model_config.model:
                 continue
 
             field_link = getattr(model_config.model, field_name)
@@ -477,7 +505,9 @@ class Copyist:
 
         for field_name in fk_fields_to_filter:
             field_copy_config = model_config.field_copy_actions[field_name]
-            copied_referenced_id_list = affected_map.get(self._key(field_copy_config.reference_to))
+            copied_referenced_id_list = affected_map.get(
+                self._key(_required(field_copy_config.reference_to, "reference_to"))
+            )
             if not copied_referenced_id_list:
                 continue
 
@@ -491,7 +521,7 @@ class Copyist:
             for field_name in nullable_fields_to_filter:
                 field_copy_config = model_config.field_copy_actions[field_name]
                 copied_referenced_id_list = affected_map.get(
-                    self._key(field_copy_config.reference_to)
+                    self._key(_required(field_copy_config.reference_to, "reference_to"))
                 )
                 if not copied_referenced_id_list:
                     continue
@@ -504,7 +534,7 @@ class Copyist:
             for field_name in nullable_fields_to_filter:
                 field_copy_config = model_config.field_copy_actions[field_name]
                 copied_referenced_id_list = affected_map.get(
-                    self._key(field_copy_config.reference_to)
+                    self._key(_required(field_copy_config.reference_to, "reference_to"))
                 )
                 if not copied_referenced_id_list:
                     continue
@@ -512,7 +542,7 @@ class Copyist:
                 for other_field in [f for f in nullable_fields_to_filter if f != field_name]:
                     other_field_copy_config = model_config.field_copy_actions[other_field]
                     copied_other_referenced_id_list = affected_map.get(
-                        self._key(other_field_copy_config.reference_to)
+                        self._key(_required(other_field_copy_config.reference_to, "reference_to"))
                     )
                     if not copied_other_referenced_id_list:
                         continue
@@ -534,7 +564,8 @@ class Copyist:
         parent_filter: ParentFilter | None,
     ) -> list[Model]:
         ignore_filter = Q()
-        for condition in model_config.ignore_condition.filter_conditions:
+        ignore_condition = _required(model_config.ignore_condition, "ignore_condition")
+        for condition in ignore_condition.filter_conditions or []:
             if condition.filter_source == IgnoreFilterSource.UNMATCHED_SET_TO_FILTER_VALUES:
                 value_model_map = set_to_filter_map[
                     self._key(condition.set_to_filter_origin_model)
@@ -563,23 +594,24 @@ class Copyist:
         set_to_filter_map: SetToFilterMap,
         model_extra_filter: Q | None,
         parent_filter: ParentFilter | None = None,
-    ):
+    ) -> None:
         if not model_config.ignore_condition:
             return
 
-        if model_config.ignore_condition.filter_conditions:
+        ignore_condition = model_config.ignore_condition
+        if ignore_condition.filter_conditions:
             ignored_values = self._evaluate_ignored_by_filters(
                 model_config=model_config,
                 set_to_filter_map=set_to_filter_map,
                 model_extra_filter=model_extra_filter,
                 parent_filter=parent_filter,
             )
-        elif model_config.ignore_condition.ignore_func:
-            ignored_values = model_config.ignore_condition.ignore_func(
+        elif ignore_condition.ignore_func:
+            ignored_values = ignore_condition.ignore_func(
                 model_config=model_config,
                 set_to_filter_map=set_to_filter_map,
                 model_extra_filter=model_extra_filter,
-                ignored_map=self._ignored_map,
+                ignored_map=self.ignored_map,
                 input_data=self.input_data,
             )
         else:
@@ -587,7 +619,7 @@ class Copyist:
 
         if not ignored_values:
             return
-        self._ignored_map[self._key(model_config.model)] = list({i.pk for i in ignored_values})
+        self.ignored_map[self._key(model_config.model)] = list({i.pk for i in ignored_values})
 
     def _run_validation_for_model(
         self,
@@ -599,11 +631,11 @@ class Copyist:
         instance_list = self._get_instances_for_model_config(
             model_config, extra_filters=model_extra_filters, parent_filter=parent_filter
         )
-        if self._key(model_config.model) in self._validation_affected_map:
+        if self._key(model_config.model) in self.validation_affected_map:
             raise ValueError(
                 f"Model {model_config.model._meta.label} has been configured for copy several times"
             )
-        self._validation_affected_map[self._key(model_config.model)] = [i.pk for i in instance_list]
+        self.validation_affected_map[self._key(model_config.model)] = [i.pk for i in instance_list]
 
         for field_name, field_copy_config in model_config.field_copy_actions.items():
             if field_copy_config.action == CopyActions.SET_TO_FILTER:
@@ -625,7 +657,7 @@ class Copyist:
 
         for compound_config in model_config.compound_copy_actions:
             extra_filters = self._get_extra_filters_for_compound_actions(
-                model_config=compound_config, affected_map=self._validation_affected_map
+                model_config=compound_config, affected_map=self.validation_affected_map
             )
             if not extra_filters:
                 continue
@@ -636,7 +668,7 @@ class Copyist:
             )
 
         if model_config.ignore_condition:
-            self._ignore_conditions_to_resolve.append(
+            self._ignore_conditions.append(
                 IgnoreEvaluation(
                     model_config=model_config,
                     # Ignore functions receive the scope of the model as a Q object.
@@ -649,8 +681,8 @@ class Copyist:
 
         return set_to_filter_map
 
-    def _resolve_ignore_conditions(self, set_to_filter_map: SetToFilterMap):
-        for condition in self._ignore_conditions_to_resolve:
+    def _resolve_ignore_conditions(self, set_to_filter_map: SetToFilterMap) -> None:
+        for condition in self._ignore_conditions:
             self._evaluate_ignored(
                 model_config=condition.model_config,
                 set_to_filter_map=set_to_filter_map,
@@ -673,7 +705,7 @@ class Copyist:
                 f"run_copy(..., map_keys=MapKeys.LABEL) to key maps by 'app_label.Model'."
             )
 
-    def validate_config(self):
+    def validate_config(self) -> None:
         self._check_map_key_conflicts()
         set_to_filter_map: SetToFilterMap = {}
         self._validation_affected_map = {}
@@ -701,7 +733,8 @@ class Copyist:
         """
         descriptor = getattr(model_class, field_name, None)
         if isinstance(descriptor, ForwardManyToOneDescriptor):
-            return descriptor.field.attname
+            attname: str = descriptor.field.attname
+            return attname
         return None
 
     def _evaluate_take_from_origin_field_values(
@@ -762,7 +795,7 @@ class Copyist:
 
     def _get_m2m_relation_map(
         self,
-        field_link: ManyToManyDescriptor,
+        field_link: ManyToManyDescriptor[Any],
         instance_id_list: list[Any],
         backward_filter_key: str,
         m2m_backward_id_field_name: str,
@@ -793,7 +826,7 @@ class Copyist:
         m2m_backward_id_field_name: str,
         use_copied_related_instances: bool,
         use_set_to_filter_values: bool,
-    ):
+    ) -> None:
         for copy_intent in copy_intent_list:
             related_id_list = m2m_map.get(str(copy_intent.origin.pk))
             if related_id_list:
@@ -814,13 +847,13 @@ class Copyist:
     def _evaluate_m2m_field_values(
         self,
         field_name: str,
-        field_link: ManyToManyDescriptor,
+        field_link: ManyToManyDescriptor[Any],
         instance_id_list: list[Any],
         copy_intent_list: list[CopyIntent],
         referenced_model: type[Model],
         use_copied_related_instances: bool = False,
         use_set_to_filter_values: bool = False,
-    ):
+    ) -> None:
         if use_copied_related_instances and use_set_to_filter_values:
             raise ValueError(
                 "Both use_copied_related_instances and use_set_to_filter_values are set to True"
@@ -857,11 +890,11 @@ class Copyist:
 
     def _evaluate_reverse_fk_field_values(
         self,
-        field_link: ForwardManyToOneDescriptor,
+        field_link: ForwardManyToOneDescriptor[Any],
         model_output_map: dict[str, str],
         copy_intent_list: list[CopyIntent],
         referenced_model: type[Model],
-    ):
+    ) -> None:
         id_field_name = field_link.field.attname
         for copy_intent in copy_intent_list:
             referenced_instance_id = getattr(copy_intent.origin, id_field_name)
@@ -885,8 +918,8 @@ class Copyist:
         field_name: str,
         instance_list: list[Model],
         copy_intent_list: list[CopyIntent],
-    ):
-        referenced_model = field_copy_config.reference_to
+    ) -> None:
+        referenced_model = _required(field_copy_config.reference_to, "reference_to")
 
         field_link = getattr(model_class, field_name)
         if not isinstance(field_link, ForwardManyToOneDescriptor | ManyToManyDescriptor):
@@ -931,10 +964,10 @@ class Copyist:
         field_copy_config: FieldCopyConfig,
         field_name: str,
         copy_intent_list: list[CopyIntent],
-    ):
+    ) -> None:
         field_link = getattr(model_class, field_name)
         id_field_name = field_link.field.attname
-        referenced_model = field_copy_config.reference_to
+        referenced_model = _required(field_copy_config.reference_to, "reference_to")
         model_set_to_filter_map = self.set_to_filter_map[self._key(model_class)].get(field_name)
 
         if isinstance(field_link, ManyToManyDescriptor):
@@ -973,7 +1006,7 @@ class Copyist:
         copy_intent_list: list[CopyIntent],
         instance_list: list[Model],
         output_map: dict[str, dict[str, str]],
-    ):
+    ) -> None:
         if field_copy_config.action == CopyActions.MAKE_COPY:
             return
         elif field_copy_config.action == CopyActions.TAKE_FROM_ORIGIN:
@@ -987,10 +1020,10 @@ class Copyist:
                 model_class=model_class,
                 field_name=field_name,
                 copy_intent_list=copy_intent_list,
-                input_key=field_copy_config.input_key,
+                input_key=_required(field_copy_config.input_key, "input_key"),
             )
         elif field_copy_config.action == CopyActions.UPDATE_TO_COPIED:
-            referenced_model = field_copy_config.reference_to
+            referenced_model = _required(field_copy_config.reference_to, "reference_to")
             model_output_map = output_map.get(self._key(referenced_model), {})
 
             self._evaluate_update_to_copied_field_values(
@@ -1013,9 +1046,9 @@ class Copyist:
 
     def _execute_delete_by_filter_step(
         self, model_config: ModelCopyConfig, step: DataModificationStep
-    ):
+    ) -> None:
         filters = {}
-        for filter_field, input_key in step.filter_field_to_input_key.items():
+        for filter_field, input_key in (step.filter_field_to_input_key or {}).items():
             if self.input_data.get(input_key) is None:
                 raise ValueError(
                     f"DELETE_BY_FILTER step on {model_config.model._meta.label} needs "
@@ -1024,12 +1057,12 @@ class Copyist:
             filters[filter_field] = self.input_data[input_key]
         self._manager(model_config.model).filter(**filters).delete()
 
-    def run_data_preparation(self, model_config: ModelCopyConfig, output_map: OutputMap):
+    def run_data_preparation(self, model_config: ModelCopyConfig, output_map: OutputMap) -> None:
         for step in model_config.data_preparation_steps:
             if step.action == DataModificationActions.DELETE_BY_FILTER:
                 self._execute_delete_by_filter_step(model_config, step)
             elif step.action == DataModificationActions.EXECUTE_FUNC:
-                step.func(
+                _required(step.func, "func")(
                     model_config=model_config,
                     input_data=self.input_data,
                     set_to_filter_map=self.set_to_filter_map,
@@ -1041,12 +1074,12 @@ class Copyist:
         model_config: ModelCopyConfig,
         output_map: OutputMap,
         copy_intent_list: list[CopyIntent],
-    ):
+    ) -> None:
         for step in model_config.postcopy_steps:
             if step.action == DataModificationActions.DELETE_BY_FILTER:
                 self._execute_delete_by_filter_step(model_config, step)
             elif step.action == DataModificationActions.EXECUTE_FUNC:
-                step.func(
+                _required(step.func, "func")(
                     model_config=model_config,
                     input_data=self.input_data,
                     set_to_filter_map=self.set_to_filter_map,
@@ -1082,7 +1115,7 @@ class Copyist:
         model_class: type[Model],
         copy_intent_list: list[CopyIntent],
         output_map: OutputMap,
-    ):
+    ) -> None:
         m2m_relations_to_create: dict[type[Model], list[Model]] = {}
 
         for copy_intent in copy_intent_list:
@@ -1101,9 +1134,9 @@ class Copyist:
                         self._key(m2m_copy_intent.from_model)
                     ][m2m_copy_intent.field_name]
                     related_id_list_to_create = [
-                        field_set_to_filter_map[related_id]
+                        substitute_id
                         for related_id in m2m_copy_intent.related_id_list
-                        if field_set_to_filter_map.get(related_id)
+                        if (substitute_id := field_set_to_filter_map.get(related_id))
                     ]
                 else:
                     related_id_list_to_create = m2m_copy_intent.related_id_list
@@ -1111,7 +1144,9 @@ class Copyist:
                 m2m_relations_to_create[m2m_copy_intent.through_model] += [
                     m2m_copy_intent.through_model(
                         **{
-                            m2m_copy_intent.backward_id_key: copy_intent.copied.pk,
+                            m2m_copy_intent.backward_id_key: _required(
+                                copy_intent.copied, "copied"
+                            ).pk,
                             m2m_copy_intent.forward_id_key: related_id,
                         }
                     )
@@ -1126,7 +1161,7 @@ class Copyist:
         model_config: ModelCopyConfig,
         copy_intent_list: list[CopyIntent],
         output_map: OutputMap,
-    ):
+    ) -> None:
         # Children of origin rows that were not copied (unmatched SET_TO_FILTER
         # values) are skipped.
         copied_origin_ids = [c.origin.pk for c in copy_intent_list]
@@ -1137,7 +1172,7 @@ class Copyist:
             field_link = getattr(model_config.model, field_name)
             relation_field_name = field_link.field.attname
             self.copy_model(
-                model_config=field_copy_config.copy_with_config,
+                model_config=_required(field_copy_config.copy_with_config, "copy_with_config"),
                 output_map=output_map,
                 parent_filter=ParentFilter(relation_field_name, copied_origin_ids),
                 parent_relation_field=field_link.field,
@@ -1145,7 +1180,7 @@ class Copyist:
 
     def _execute_copy_on_compound_actions(
         self, model_config: ModelCopyConfig, output_map: OutputMap
-    ):
+    ) -> None:
         for compound_config in model_config.compound_copy_actions:
             affected_map = {k: list(v.keys()) for k, v in output_map.items()}
             extra_filters = self._get_extra_filters_for_compound_actions(
@@ -1164,7 +1199,7 @@ class Copyist:
         model_class: type[Model],
         copy_intent_list: list[CopyIntent],
         output_map: OutputMap,
-        parent_relation_field: ForeignKey | None = None,
+        parent_relation_field: ForeignKey[Any, Any] | None = None,
     ) -> list[Model]:
         copies_to_create: list[Model] = []
         for copy_intent in copy_intent_list:
@@ -1205,7 +1240,7 @@ class Copyist:
         model_config: ModelCopyConfig,
         output_map: OutputMap,
         extra_filters: Q | None = None,
-        parent_relation_field: ForeignKey | None = None,
+        parent_relation_field: ForeignKey[Any, Any] | None = None,
         parent_filter: ParentFilter | None = None,
     ) -> OutputMap:
         self.run_data_preparation(model_config, output_map)
@@ -1213,7 +1248,7 @@ class Copyist:
         instance_list = self._get_instances_for_model_config(
             model_config=model_config, extra_filters=extra_filters, parent_filter=parent_filter
         )
-        ignored_ids = set(self._ignored_map.get(self._key(model_config.model), ()))
+        ignored_ids = set(self.ignored_map.get(self._key(model_config.model), ()))
         if ignored_ids:
             instance_list = [i for i in instance_list if i.pk not in ignored_ids]
         if not instance_list:
@@ -1278,7 +1313,7 @@ class Copyist:
         return False
 
     def execute_copy(self) -> OutputMap:
-        output_map = {}
+        output_map: OutputMap = {}
 
         for model_config in self.config.model_configs:
             self.copy_model(model_config=model_config, output_map=output_map)

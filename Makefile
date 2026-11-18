@@ -15,4 +15,7 @@ lint: deps
 	uv run ruff check .
 	uv run ruff format --check .
 
-ci: lint test
+typecheck: deps
+	uv run mypy
+
+ci: lint typecheck test

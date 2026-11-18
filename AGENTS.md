@@ -26,6 +26,7 @@ read `README.rst` and https://abondar.github.io/django-copyist/llms.txt instead.
 ```bash
 uv sync --extra dev
 make lint                     # ruff check + ruff format --check
+make typecheck                # mypy --strict on the package and example/typing_examples.py
 make test                     # pytest with coverage, SQLite
 make docs                     # Sphinx, also writes llms.txt and llms-full.txt
 POSTGRES_HOST=localhost make test   # PostgreSQL; needs a server with user/password postgres
@@ -43,4 +44,7 @@ uv run --extra dev --extra bench python -m benchmarks.run --sizes small,medium
   `Model.objects`.
 - Every bug fix comes with a regression test in `example/edge_cases/tests/`.
 - New public names go into `__all__`, `docs/source/api.rst` and `CHANGELOG.rst`.
-- Run `make lint test` before you finish. CI also runs PostgreSQL 14, 15 and 18.
+- The package passes `mypy --strict`. Keep it that way: no new `# type: ignore` without an
+  error code and a reason. When you change a public signature, extend
+  `example/typing_examples.py`, including a rejected-misuse line if it matters.
+- Run `make lint typecheck test` before you finish. CI also runs PostgreSQL 14, 15 and 18.

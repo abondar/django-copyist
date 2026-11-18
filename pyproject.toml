@@ -65,6 +65,8 @@ dev = [
     "sphinx-llms-txt>=0.7,<0.8",
     "psycopg[binary]>=3.2,<4.0",
     "pytest-cov>=6.0,<8.0",
+    "mypy>=2.4,<3.0",
+    "django-stubs>=6.1,<7.0",
 ]
 bench = [
     "django-clone>=5.5,<6.0",
@@ -86,6 +88,28 @@ ignore = ["E203"]
 
 [tool.ruff.format]
 quote-style = "double"
+
+[tool.mypy]
+python_version = "3.11"
+files = ["django_copyist", "example/typing_examples.py"]
+plugins = ["mypy_django_plugin.main"]
+strict = true
+warn_unreachable = true
+
+[[tool.mypy.overrides]]
+# The example project and its migrations only need to import cleanly.
+module = ["example.*"]
+disallow_untyped_defs = false
+disallow_incomplete_defs = false
+disallow_untyped_calls = false
+
+[[tool.mypy.overrides]]
+module = ["example.typing_examples"]
+disallow_untyped_defs = true
+disallow_incomplete_defs = true
+
+[tool.django-stubs]
+django_settings_module = "example.settings"
 
 [tool.hatch.build.targets.sdist]
 include = ["django_copyist", "CHANGELOG.rst", "LICENSE.txt", "README.rst"]
