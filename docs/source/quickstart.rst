@@ -1,7 +1,7 @@
 Quickstart
 ==========
 
-This pages aims to get you going with django-copyist as quickly as possible.
+This page gets you from installation to a working copy.
 
 Installation
 ------------
@@ -17,6 +17,9 @@ To install with uv:
 .. code-block:: console
 
    uv add django-copyist
+
+django-copyist needs no settings. Add ``"django_copyist"`` to ``INSTALLED_APPS`` only if
+you want the ``copyist_scaffold`` management command (see :doc:`configs`).
 
 
 Basic usage
@@ -72,13 +75,12 @@ In this case you should write following :py:class:`~.django_copyist.config.Model
 
 .. code-block:: python
 
-    from django_copyist.config import (
-        ModelCopyConfig,
+    from django_copyist import (
         TAKE_FROM_ORIGIN,
         MakeCopy,
+        ModelCopyConfig,
+        TakeFromInput,
         UpdateToCopied,
-        FieldCopyConfig,
-        CopyActions,
     )
     from example.demo.models import (
         Project,
@@ -93,14 +95,8 @@ In this case you should write following :py:class:`~.django_copyist.config.Model
         model=Company,
         filter_field_to_input_key={"id": "company_id"},
         field_copy_actions={
-            "name": FieldCopyConfig(
-                action=CopyActions.TAKE_FROM_INPUT,
-                input_key="new_company_name",
-            ),
-            "address": FieldCopyConfig(
-                action=CopyActions.TAKE_FROM_INPUT,
-                input_key="new_company_address",
-            ),
+            "name": TakeFromInput("new_company_name"),
+            "address": TakeFromInput("new_company_address"),
             "projects": MakeCopy(
                 ModelCopyConfig(
                     model=Project,
@@ -141,25 +137,33 @@ In this case you should write following :py:class:`~.django_copyist.config.Model
         ],
     )
 
-And then you can execute copy action like this:
+Check the config before you run it. :py:func:`~django_copyist.check_config` compares it
+with the model metadata and runs no queries:
 
 .. code-block:: python
 
-    from django_copyist.copy_request import CopyRequest
-    from django_copyist.copyist import CopyistConfig, Copyist
+    from django_copyist import check_config
 
-    copy_request = CopyRequest(
-        config=CopyistConfig([config]),
+    check_config(config, raise_on_error=True)
+
+Then run the copy:
+
+.. code-block:: python
+
+    from django_copyist import run_copy
+
+    result = run_copy(
+        config,
         input_data={
             "company_id": company_id,
             "new_company_name": new_company_name,
             "new_company_address": new_company_address,
         },
-        confirm_write=False,
     )
-    result = Copyist(copy_request).execute_copy_request()
+    assert result.is_copy_successful
+    new_company_id = result.copies_of(Company)[str(company_id)]
 
-With this, all company data should be copied.
+With this, all company data is copied.
 That seems like a lot to take in, so let's break it down to what exactly happens here:
 
 1. We define a :py:class:`~.django_copyist.config.ModelCopyConfig` for the `Company` model.
@@ -178,14 +182,8 @@ That seems like a lot to take in, so let's break it down to what exactly happens
 .. code-block:: python
 
     field_copy_actions={
-        "name": FieldCopyConfig(
-            action=CopyActions.TAKE_FROM_INPUT,
-            input_key="new_company_name",
-        ),
-        "address": FieldCopyConfig(
-            action=CopyActions.TAKE_FROM_INPUT,
-            input_key="new_company_address",
-        ),
+        "name": TakeFromInput("new_company_name"),
+        "address": TakeFromInput("new_company_address"),
         "projects": MakeCopy(
             ModelCopyConfig(
                 model=Project,
@@ -216,6 +214,7 @@ That seems like a lot to take in, so let's break it down to what exactly happens
 :py:attr:`.ModelCopyConfig.field_copy_actions` is a dictionary that maps the field name to a :py:class:`~.FieldCopyConfig` object.
 
 The :py:class:`~.FieldCopyConfig` object defines how to copy the field. In this case, we take the `name` and `address` fields from the input data.
+:py:func:`~.TakeFromInput` is a shortcut for a :py:class:`~.FieldCopyConfig` with the :py:attr:`~.CopyActions.TAKE_FROM_INPUT` action.
 
 :py:attr:`~django_copyist.config.TAKE_FROM_ORIGIN` is a shortcut for creating :py:class:`~.FieldCopyConfig` with :py:attr:`~.CopyActions.TAKE_FROM_ORIGIN` action, which takes value for new object from original object.
 
@@ -252,45 +251,66 @@ In this case, we define how to copy the `Task` model. We take the `name` and `de
 :py:func:`~.UpdateToCopied` is a shortcut for creating :py:class:`~.FieldCopyConfig` with :py:attr:`CopyActions.UPDATE_TO_COPIED` action and reference to given model.
 It will search mapping of previously copied objects and update reference to copied object.
 
-4. We create a :py:class:`~.CopyRequest` object with the :py:class:`~.CopyistConfig` and input data.
+4. We run the copy with :py:func:`~django_copyist.run_copy`.
 
 .. code-block:: python
 
-    copy_request = CopyRequest(
-        config=CopyistConfig([config]),
+    result = run_copy(
+        config,
         input_data={
             "company_id": company_id,
             "new_company_name": new_company_name,
             "new_company_address": new_company_address,
         },
-        confirm_write=False,
     )
-    ...
 
-:py:class:`~.CopyRequest` is a class that defines the copy request. It takes the `CopyistConfig` object, input data, and a boolean flag that indicates whether to confirm the write operation.
+``input_data`` holds the values that root filters and ``TAKE_FROM_INPUT`` actions read
+by key.
 
-:py:class:`~.CopyistConfig` is a class that defines the configuration for the copy operation. It takes a list of :py:class:`~.ModelCopyConfig` objects.
+:py:func:`~django_copyist.run_copy` also accepts:
 
-:py:attr:`.CopyResult.input_data` is a dictionary that contains the input data for the copy operation. It is later used in filtering or :py:attr:`~.TAKE_FROM_INPUT` actions.
+- ``confirm_write``: copy even when some references have no match or some rows are
+  ignored. See :ref:`copy-request-and-result` in the overview.
+- ``using``: the database alias for all reads and writes.
+- ``batch_size``: the ``batch_size`` of every ``bulk_create`` call.
 
-:py:attr:`.CopyResult.confirm_write` is a boolean flag that indicates whether to confirm the write operation,
-even if there are issues with matching objects in origin location with objects in target destination.
-It is not used in this example, but you can read more about it in overview section of this documentation.
+5. We read the result.
 
-5. We execute the copy request.
+:py:class:`~.CopyResult` tells whether the copy ran (``is_copy_successful``) and maps
+every origin primary key to the primary key of its copy:
 
 .. code-block:: python
 
-    result = Copyist(copy_request).execute_copy_request()
+    result.copies_of(Company)  # {"1": "2"}
+    result.output_map  # {"Company": {"1": "2"}, "Project": {...}, ...}
 
-:py:class:`~django_copyist.copyist.Copyist` is a class that executes the copy request. It takes the :py:class:`~.CopyRequest` object as an argument.
+Keys of ``output_map``, ``ignored_map`` and ``set_to_filter_map`` are model class names.
+Primary keys are strings.
 
-:py:attr:`.CopyResult.execute_copy_request` method returns :py:class:`~.CopyResult` object that contains information about the copy operation. Read more about it in overview section.
+If two models in one config share a class name, for example ``shop.Order`` and
+``billing.Order``, the copy raises ``ImproperlyConfigured`` before it runs any query.
+Key the maps by model label instead:
+
+.. code-block:: python
+
+    from django_copyist import MapKeys
+
+    result = run_copy(config, input_data={...}, map_keys=MapKeys.LABEL)
+    result.output_map  # {"shop.Order": {...}, "billing.Order": {...}}
+
+``map_keys`` can also be set on :py:class:`~django_copyist.copyist.CopyistConfig`.
+Callbacks receive maps with the same keys. ``result.copies_of(Model)`` works in both
+modes.
+
+:py:func:`~django_copyist.run_copy` builds a :py:class:`~.CopyRequest` and calls
+:py:meth:`.Copyist.execute_copy_request`. You can do the same yourself.
 
 And like this you have copied the company with all related data and can see and edit configuration in one place.
 
 Next steps
 ----------
 
-This is just a basic example of how to use django-copyist.
-It can do much more granular control on how it should execute copy, and you can read more about it in the documentation.
+- :doc:`overview` shows every copy action on a working example.
+- :doc:`configs` shows how to generate a config with ``copyist_scaffold`` and check it
+  with ``check_config``.
+- :doc:`limitations` lists what django-copyist does not do.

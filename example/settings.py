@@ -10,6 +10,7 @@ For the full list of settings and their values, see
 https://docs.djangoproject.com/en/5.0/ref/settings/
 """
 
+import os
 from pathlib import Path
 
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
@@ -39,6 +40,8 @@ INSTALLED_APPS = [
     "django.contrib.staticfiles",
     "example.transport_network",
     "example.demo",
+    "example.edge_cases",
+    "django_copyist",
 ]
 
 MIDDLEWARE = [
@@ -75,12 +78,31 @@ WSGI_APPLICATION = "example.wsgi.application"
 # Database
 # https://docs.djangoproject.com/en/5.0/ref/settings/#databases
 
-DATABASES = {
-    "default": {
-        "ENGINE": "django.db.backends.sqlite3",
-        "NAME": "/tmp/db.sqlite3",
+# Tests run on SQLite by default. Set POSTGRES_HOST to run them on PostgreSQL.
+# The "other" alias exists to test the ``using=`` option.
+if os.environ.get("POSTGRES_HOST"):
+    _POSTGRES = {
+        "ENGINE": "django.db.backends.postgresql",
+        "HOST": os.environ["POSTGRES_HOST"],
+        "PORT": os.environ.get("POSTGRES_PORT", "5432"),
+        "USER": os.environ.get("POSTGRES_USER", "postgres"),
+        "PASSWORD": os.environ.get("POSTGRES_PASSWORD", "postgres"),
     }
-}
+    DATABASES = {
+        "default": {**_POSTGRES, "NAME": "copyist"},
+        "other": {**_POSTGRES, "NAME": "copyist_other"},
+    }
+else:
+    DATABASES = {
+        "default": {
+            "ENGINE": "django.db.backends.sqlite3",
+            "NAME": BASE_DIR / "db.sqlite3",
+        },
+        "other": {
+            "ENGINE": "django.db.backends.sqlite3",
+            "NAME": BASE_DIR / "db_other.sqlite3",
+        },
+    }
 
 
 # Password validation

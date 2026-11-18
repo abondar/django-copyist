@@ -1,3 +1,4 @@
+from collections.abc import Callable
 from dataclasses import dataclass, field
 from enum import StrEnum
 from typing import TYPE_CHECKING, Any, Optional, Protocol
@@ -50,8 +51,9 @@ class IgnoreFilter:
 
 
 class IgnoreFunc(Protocol):
-    @staticmethod
     def __call__(
+        self,
+        *,
         model_config: "ModelCopyConfig",
         set_to_filter_map: "SetToFilterMap",
         model_extra_filter: Q | None,
@@ -149,8 +151,9 @@ class FieldFilterConfig:
 
 
 class SetToFilterFunc(Protocol):
-    @staticmethod
     def __call__(
+        self,
+        *,
         model_config: "ModelCopyConfig",
         input_data: dict[str, Any],
         field_name: str,
@@ -281,6 +284,18 @@ def UpdateToCopied(reference: type[Model]) -> FieldCopyConfig:
     return FieldCopyConfig(action=CopyActions.UPDATE_TO_COPIED, reference_to=reference)
 
 
+def TakeFromInput(input_key: str) -> FieldCopyConfig:
+    """
+    Shortcut for creating a FieldCopyConfig instance with the TAKE_FROM_INPUT action.
+
+    :param input_key: The key in ``input_data`` that holds the value for the field.
+    :type input_key: str
+    :return: A FieldCopyConfig instance with the action set to TAKE_FROM_INPUT.
+    :rtype: FieldCopyConfig
+    """
+    return FieldCopyConfig(action=CopyActions.TAKE_FROM_INPUT, input_key=input_key)
+
+
 def MakeCopy(config: "ModelCopyConfig") -> FieldCopyConfig:
     """
     This function is a shortcut for creating a FieldCopyConfig instance with the MAKE_COPY action.
@@ -301,8 +316,9 @@ class DataModificationActions(StrEnum):
 
 
 class DataPreparationFunc(Protocol):
-    @staticmethod
     def __call__(
+        self,
+        *,
         model_config: "ModelCopyConfig",
         input_data: dict[str, Any],
         set_to_filter_map: "SetToFilterMap",
@@ -330,7 +346,7 @@ class DataPreparationFunc(Protocol):
 class DataModificationStep:
     action: DataModificationActions
     filter_field_to_input_key: dict[str, str] | None = None
-    func = None
+    func: Callable[..., None] | None = None
 
     def __post_init__(self):
         if bool(self.func) == bool(self.filter_field_to_input_key):
@@ -343,8 +359,9 @@ class DataPreparationStep(DataModificationStep):
 
 
 class PostcopyFunc(Protocol):
-    @staticmethod
     def __call__(
+        self,
+        *,
         model_config: "ModelCopyConfig",
         input_data: dict[str, Any],
         set_to_filter_map: "SetToFilterMap",
@@ -447,21 +464,24 @@ def get_queryset_for_model_config(
     model_config: ModelCopyConfig,
     extra_filters: Q | None,
     input_data: dict[str, Any],
+    using: str | None = None,
+    scoped_by_caller: bool = False,
 ) -> QuerySet:
     model_class = model_config.model
-    if not (model_config.filter_field_to_input_key or extra_filters):
+    if not (model_config.filter_field_to_input_key or extra_filters or scoped_by_caller):
         raise ValueError(
-            f"get_instances_for_model_config was called without filters for {model_class.__name__}"
+            f"get_instances_for_model_config was called without filters for "
+            f"{model_class._meta.label}"
         )
 
-    query = model_class.objects.all()
+    query = model_class._default_manager.db_manager(using).all()
     if extra_filters:
         query = query.filter(extra_filters)
 
     if model_config.filter_field_to_input_key:
         for filter_field, input_key in model_config.filter_field_to_input_key.items():
             input_value = input_data.get(input_key)
-            if not input_value:
+            if input_value is None:
                 raise ValueError(
                     f"Filter {filter_field} value with key {input_key} was not found in input_data"
                 )
@@ -472,3 +492,69 @@ def get_queryset_for_model_config(
 
     query = query.distinct()
     return query
+
+
+class MapKeys(StrEnum):
+    """
+    How models are keyed in ``output_map``, ``ignored_map`` and ``set_to_filter_map``.
+    """
+
+    #: Class name, for example ``"Company"``. The default. Fails if two models in one
+    #: config share a class name.
+    MODEL_NAME = "MODEL_NAME"
+    #: Model label, for example ``"demo.Company"``. Unique across apps.
+    LABEL = "LABEL"
+
+
+def map_key(model: type[Model], map_keys: MapKeys = MapKeys.MODEL_NAME) -> str:
+    """
+    Key of ``model`` in the result maps for the given :class:`MapKeys` mode.
+    """
+    if map_keys == MapKeys.LABEL:
+        return model._meta.label
+    return model.__name__
+
+
+def _models_used_as_map_keys(config: ModelCopyConfig, models: set[type[Model]]) -> None:
+    models.add(config.model)
+    for field_config in config.field_copy_actions.values():
+        if field_config.action == CopyActions.MAKE_COPY and field_config.copy_with_config:
+            _models_used_as_map_keys(field_config.copy_with_config, models)
+        elif field_config.action == CopyActions.UPDATE_TO_COPIED and field_config.reference_to:
+            # The engine looks up copies of the referenced model by its key.
+            models.add(field_config.reference_to)
+    if config.ignore_condition and config.ignore_condition.filter_conditions:
+        for condition in config.ignore_condition.filter_conditions:
+            models.add(condition.set_to_filter_origin_model)
+    for compound in config.compound_copy_actions:
+        _models_used_as_map_keys(compound, models)
+
+
+def map_key_labels(
+    model_configs: list[ModelCopyConfig], map_keys: MapKeys = MapKeys.MODEL_NAME
+) -> dict[str, str]:
+    """
+    Map key to model label for every model that the configs key maps by.
+    """
+    models: set[type[Model]] = set()
+    for config in model_configs:
+        _models_used_as_map_keys(config, models)
+    return {map_key(model, map_keys): model._meta.label for model in models}
+
+
+def find_map_key_conflicts(model_configs: list[ModelCopyConfig]) -> dict[str, list[str]]:
+    """
+    Class names shared by several models that the configs key maps by.
+
+    :return: ``{"Project": ["demo.Project", "shop.Project"]}``. Empty if there is no
+        conflict.
+    """
+    models: set[type[Model]] = set()
+    for config in model_configs:
+        _models_used_as_map_keys(config, models)
+    labels_by_name: dict[str, set[str]] = {}
+    for model in models:
+        labels_by_name.setdefault(model.__name__, set()).add(model._meta.label)
+    return {
+        name: sorted(labels) for name, labels in sorted(labels_by_name.items()) if len(labels) > 1
+    }

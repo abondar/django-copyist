@@ -6,4 +6,8 @@
     index
     quickstart
     overview
+    configs
+    limitations
+    benchmark
     api
+    changelog

@@ -6,6 +6,13 @@ on:
 jobs:
   publish:
     runs-on: ubuntu-latest
+    # PyPI Trusted Publishing: no API token. Register this repository, this workflow
+    # file and the "pypi" environment as a trusted publisher on pypi.org first.
+    environment:
+      name: pypi
+      url: https://pypi.org/project/django-copyist/
+    permissions:
+      id-token: write
     env:
       UV_PYTHON: "3.14"
     steps:
@@ -21,6 +28,3 @@ jobs:
         run: make build
       - name: Pypi Publish
         uses: pypa/gh-action-pypi-publish@release/v1
-        with:
-          user: __token__
-          password: ${{ secrets.pypi_password }}
